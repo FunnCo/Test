@@ -40,7 +40,7 @@ fun Screen(modifier: Modifier) {
     val viewModel : MainActivityViewModel = viewModel()
 
     Column {
-
+        Text("A")
     }
 }
 
