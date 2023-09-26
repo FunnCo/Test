@@ -1,24 +1,31 @@
 package com.funnco.scheduler.presentation.main
 
-import android.util.Log
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
-import com.funnco.scheduler.data.retrofit.RetrofitInstance
 import com.funnco.scheduler.domain.interactor.UserDataInteractor
 import kotlinx.coroutines.flow.MutableStateFlow
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 class MainActivityViewModel: ViewModel() {
 
     val userDataInteractor = UserDataInteractor()
     val listOfUsers = MutableStateFlow(emptyList<UserModel>())
+    val mapOfUserSchedules = MutableStateFlow(emptyMap<Int, List<ScheduleModel>>())
+    var isCurrentUserFree = MutableStateFlow(true)
+
+    fun subscribeToUserBusiness(userModel: UserModel){
+        userDataInteractor.isUserFree(userModel) {
+            isCurrentUserFree.value = it
+        }
+    }
+
 
     init {
-        userDataInteractor.subscribeToUserUpdate(this) {
-            listOfUsers.value = it
+        userDataInteractor.subscribeToScheduleUpdate() {
+            mapOfUserSchedules.value = it
+            userDataInteractor.subscribeToUserUpdate() {
+                listOfUsers.value = it
+            }
         }
     }
 
