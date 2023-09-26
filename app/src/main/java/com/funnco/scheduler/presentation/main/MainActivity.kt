@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -72,11 +74,20 @@ fun Greeting(
     viewModel: MainActivityViewModel = viewModel()
 ) {
 
+    var firstLaunch by remember {
+        mutableStateOf(true)
+    }
     val allUsers = viewModel.listOfUsers.collectAsState(emptyList()).value
 
     var selectedUser by remember {
         mutableStateOf(UserModel(-1, ""))
     }
+
+    if(firstLaunch && allUsers.size > 0){
+        firstLaunch = false
+        selectedUser = allUsers[0]
+    }
+
 
     var isExpanded by remember {
         mutableStateOf(false)
@@ -129,12 +140,25 @@ fun Greeting(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .weight(5f, true)
                 .padding(4.dp)
-                .alpha(if (selectedUser.id != -1) 0f else 1f),
+                .alpha(if (selectedUser.id != -1) 1f else 0f),
             shape = RoundedCornerShape(8.dp)
         ) {
 
+        }
+
+        TextButton(
+            onClick = { /*TODO*/ },
+            shape = RoundedCornerShape(8.dp),
+            modifier = modifier
+                .align(Alignment.End)
+                .fillMaxWidth()
+                .alpha(if (selectedUser.id != -1) 1f else 0f)
+                .padding(4.dp)
+                .height(40.dp)
+        ) {
+            Text(text = "Изменить расписание ")
         }
 
         Button(
@@ -142,7 +166,9 @@ fun Greeting(
             shape = RoundedCornerShape(8.dp),
             modifier = modifier
                 .align(Alignment.End)
+                .fillMaxWidth()
                 .padding(4.dp)
+                .height(40.dp)
         ) {
             Text(text = "Добавить нового пользователя")
         }
