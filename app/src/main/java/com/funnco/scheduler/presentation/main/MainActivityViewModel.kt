@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import com.funnco.scheduler.data.model.UserModel
 import com.funnco.scheduler.data.retrofit.RetrofitInstance
+import com.funnco.scheduler.domain.interactor.UserDataInteractor
 import kotlinx.coroutines.flow.MutableStateFlow
 import retrofit2.Call
 import retrofit2.Callback
@@ -12,23 +13,13 @@ import retrofit2.Response
 
 class MainActivityViewModel: ViewModel() {
 
+    val userDataInteractor = UserDataInteractor()
     val listOfUsers = MutableStateFlow(emptyList<UserModel>())
 
     init {
-        RetrofitInstance.userAPI.getUsers().enqueue(object: Callback<List<UserModel>> {
-            override fun onResponse(
-                call: Call<List<UserModel>>,
-                response: Response<List<UserModel>>
-            ) {
-                Log.i("TAG", "Success ${response.raw()}")
-                listOfUsers.value = response.body()!!
-            }
-
-            override fun onFailure(call: Call<List<UserModel>>, t: Throwable) {
-                Log.e("TAG", "Fail ${t.message}")
-            }
-
-        })
+        userDataInteractor.subscribeToUserUpdate(this) {
+            listOfUsers.value = it
+        }
     }
 
 }
