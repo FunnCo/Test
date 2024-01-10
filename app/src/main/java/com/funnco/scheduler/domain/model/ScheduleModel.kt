@@ -4,8 +4,9 @@ import com.google.gson.annotations.SerializedName
 import java.time.LocalTime
 
 data class ScheduleModel(
+    val id: Int?,
     val userId : Int,
-    val startTime: LocalTime,
-    val endTime: LocalTime,
+    var startTime: LocalTime,
+    var endTime: LocalTime,
     val dayNumber: Int
 )

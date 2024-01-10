@@ -13,6 +13,25 @@ import java.util.stream.Collectors
 
 object UserRepository {
 
+        fun postSchedules(updateSchedules: List<ScheduleDTO>, callback: (Boolean) -> Unit){
+            RetrofitInstance.supabaseAPI.postSchedules(updateSchedules).enqueue(object: Callback<List<ScheduleDTO>>{
+                override fun onResponse(call: Call<List<ScheduleDTO>>, response: Response<List<ScheduleDTO>>) {
+                    Log.i("TAG1", "Success ${response.raw()}")
+                    if(response.code() == 201 || response.code() == 200) {
+                        callback(true)
+                    } else {
+                        callback(false)
+                    }
+                }
+
+                override fun onFailure(call: Call<List<ScheduleDTO>>, t: Throwable) {
+                    Log.e("TAG", "Fail ${t.message}, cause:${t.cause}")
+                    callback(false)
+                }
+
+            })
+        }
+
         fun getAllSchedules(callback: (List<ScheduleModel>) -> Unit) {
             RetrofitInstance.supabaseAPI.getSchedules()
                 .enqueue(object : Callback<List<ScheduleDTO>> {
@@ -23,6 +42,7 @@ object UserRepository {
                         Log.i("TAG1", "Success ${response.raw()}")
                         callback(response.body()!!.stream().map { dto ->
                             ScheduleModel(
+                                id = dto.id,
                                 userId = dto.userId,
                                 dayNumber = dto.dayNumber,
                                 startTime = LocalTime.parse(dto.startTime),

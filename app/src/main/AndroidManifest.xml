@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -14,6 +14,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Scheduler"
         tools:targetApi="31">
+        <activity
+            android:name=".presentation.timeEdit.TimeEditActivity"
+            android:exported="false"
+            android:label="@string/title_activity_time_edit"
+            android:theme="@style/Theme.Scheduler" />
         <activity
             android:name=".presentation.main.MainActivity"
             android:exported="true"

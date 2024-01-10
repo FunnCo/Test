@@ -1,9 +1,12 @@
 package com.funnco.scheduler.presentation.main
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.ColorRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,9 +15,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -38,9 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.UserModel
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
+import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +77,8 @@ fun Greeting(
     viewModel: MainActivityViewModel = viewModel()
 ) {
 
+    val context = LocalContext.current
+
 
     var firstLaunch by remember {
         mutableStateOf(true)
@@ -82,7 +91,7 @@ fun Greeting(
 
     viewModel.subscribeToUserBusiness(selectedUser)
 
-    if (firstLaunch && allUsers.size > 0) {
+    if (firstLaunch && allUsers.isNotEmpty()) {
         firstLaunch = false
         selectedUser = allUsers[0]
     }
@@ -138,44 +147,95 @@ fun Greeting(
             }
         }
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(5f, true)
-                .padding(4.dp)
-                .alpha(if (selectedUser.id != -1) 1f else 0f),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(
+        if (selectedUser.id != -1) {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
+                    .weight(5f, true)
+                    .padding(4.dp, 8.dp, 4.dp, 8.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Row(
-                    if (isFree)
-                        Modifier.background(MaterialTheme.colorScheme.primary)
-                    else
-                        Modifier.background(MaterialTheme.colorScheme.error)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
                 ) {
-                    Text(
-                        text = if (isFree)
-                            "Свобода!"
+                    Row(
+                        if (isFree)
+                            Modifier.background(Color(0xFFC5E1A5))
                         else
-                            "Работа",
+                            Modifier.background(Color(0xFFEF9A9A))
+                    ) {
+                        Text(
+                            text = if (isFree)
+                                "Свобода!"
+                            else
+                                "Работа",
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(PaddingValues(0.dp, 32.dp, 0.dp, 32.dp)),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            textAlign = TextAlign.Center,
+                            fontSize = 24.sp
+                        )
+                    }
+
+                    Text(
+                        text = "График занятости",
                         Modifier
                             .fillMaxWidth()
-                            .padding(PaddingValues(0.dp, 32.dp, 0.dp, 32.dp)),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                            .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
                         textAlign = TextAlign.Center,
-                        fontSize = 24.sp
+                        fontSize = 18.sp
                     )
-                }
 
+                    val currentSchedule = viewModel.currentSchedule.collectAsState().value
+
+                    if (currentSchedule.isEmpty()) {
+                        Row {
+                            Text(
+                                text = "Сегодня выходной!", Modifier
+                                    .fillMaxWidth()
+                                    .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+
+                        for (entry in currentSchedule) {
+
+                            Text(
+                                text = "${entry.startTime} - ${entry.endTime}", Modifier
+                                    .fillMaxWidth()
+                                    .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
+                                textAlign = TextAlign.Center
+                            )
+
+                        }
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(5f, true)
+                    .padding(4.dp, 8.dp, 4.dp, 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    trackColor = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
         Button(
-            onClick = { /*TODO*/ },
+            onClick = {
+                val intent = Intent(context, TimeEditActivity::class.java)
+                intent.putExtra("user_id", selectedUser.id)
+                context.startActivity(intent)
+            },
             shape = RoundedCornerShape(12.dp),
             modifier = modifier
                 .align(Alignment.End)

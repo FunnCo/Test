@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Scheduler</string>
+    <string name="title_activity_time_edit">TimeEditActivity</string>
 </resources>

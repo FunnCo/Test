@@ -6,26 +6,24 @@ import com.funnco.scheduler.data.model.UserModel
 import com.funnco.scheduler.domain.interactor.UserDataInteractor
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class MainActivityViewModel: ViewModel() {
+class MainActivityViewModel : ViewModel() {
 
-    val userDataInteractor = UserDataInteractor()
+    private val userDataInteractor = UserDataInteractor
     val listOfUsers = MutableStateFlow(emptyList<UserModel>())
-    val mapOfUserSchedules = MutableStateFlow(emptyMap<Int, List<ScheduleModel>>())
     var isCurrentUserFree = MutableStateFlow(true)
+    var currentSchedule = MutableStateFlow(emptyList<ScheduleModel>())
 
-    fun subscribeToUserBusiness(userModel: UserModel){
+
+    fun subscribeToUserBusiness(userModel: UserModel) {
         userDataInteractor.isUserFree(userModel) {
             isCurrentUserFree.value = it
+            currentSchedule.value = userDataInteractor.getCurrentDaySchedules(userModel)
         }
     }
 
-
     init {
-        userDataInteractor.subscribeToScheduleUpdate() {
-            mapOfUserSchedules.value = it
-            userDataInteractor.subscribeToUserUpdate() {
-                listOfUsers.value = it
-            }
+        userDataInteractor.subscribeToUserUpdate() {
+            listOfUsers.value = it
         }
     }
 
