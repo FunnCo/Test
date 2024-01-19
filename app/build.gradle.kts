@@ -73,13 +73,20 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+//
+//    // For AppWidgets support
+//    implementation("androidx.glance:glance-appwidget:1.0.0")
+//
+//    // For interop APIs with Material 2
+//    implementation("androidx.glance:glance-material:1.0.0")
+//
+//    // For interop APIs with Material 3
+//    implementation("androidx.glance:glance-material3:1.0.0")
 
-    // For AppWidgets support
-    implementation("androidx.glance:glance-appwidget:1.0.0")
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.0.4"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:serializer-jackson")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
-    // For interop APIs with Material 2
-    implementation("androidx.glance:glance-material:1.0.0")
-
-    // For interop APIs with Material 3
-    implementation("androidx.glance:glance-material3:1.0.0")
+    implementation("io.ktor:ktor-client-android:2.3.7")
 }

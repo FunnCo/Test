@@ -4,16 +4,11 @@ import android.util.Log
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
 
-import com.funnco.scheduler.data.repository.UserRepository
-import com.funnco.scheduler.data.retrofit.dto.ScheduleDTO
-import kotlinx.coroutines.CoroutineScope
+import com.funnco.scheduler.data.repository.SupabaseRepository
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -31,10 +26,9 @@ object UserDataInteractor {
     }
 
     fun removeEntries(entriesToDelete: List<ScheduleModel>) {
-        for (entry in entriesToDelete) {
-            UserRepository.deleteSchedule(entry.id!!)
+        GlobalScope.launch {
+            SupabaseRepository.deleteSchedule(entriesToDelete)
         }
-
     }
 
     fun getAllDaysSchedules(userModel: UserModel): List<ScheduleModel> {
@@ -45,10 +39,14 @@ object UserDataInteractor {
     }
 
     fun postAndUpdateSchedules(updatedSchedules: List<ScheduleModel>, callback: (Boolean) -> Unit) {
-        UserRepository.postSchedules(updatedSchedules.reversed().distinctBy { it.startTime }
-            .distinctBy { it.endTime }.reversed().stream().map { entry -> ScheduleDTO(entry) }
-            .collect(Collectors.toList())) {
-            callback(it)
+        GlobalScope.launch {
+            SupabaseRepository.upsertSchedules(updatedSchedules.reversed()
+                .distinctBy { it.startTime.toSecondOfDay() }
+                .distinctBy { it.endTime.toSecondOfDay() }.reversed().stream()
+                .collect(Collectors.toList())
+            ) {
+                callback(it)
+            }
         }
     }
 
@@ -59,7 +57,7 @@ object UserDataInteractor {
         return try {
             mapOfUsersSchedules[userModel.id]!!.filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
                 .sortedBy { it.startTime }
-        } catch (exception: NullPointerException){
+        } catch (exception: NullPointerException) {
             emptyList()
         }
     }
@@ -93,7 +91,8 @@ object UserDataInteractor {
                     for (entry in entriesToCheck) {
                         var result =
                             currentTime.compareTo(entry.startTime) * currentTime.compareTo(
-                                entry.endTime) > 0
+                                entry.endTime
+                            ) > 0
                         if (!result) {
                             isNegativeFound = true
                             break
@@ -116,7 +115,7 @@ object UserDataInteractor {
             while (true) {
                 if (previousSyncPassed) {
                     previousSyncPassed = false
-                    UserRepository.getAllSchedules {
+                    SupabaseRepository.getAllSchedules {
                         val requiredMap = mutableMapOf<Int, List<ScheduleModel>>()
                         it.stream().forEach { entry ->
                             if (!requiredMap.containsKey(entry.userId)) {
@@ -140,7 +139,7 @@ object UserDataInteractor {
             while (true) {
                 if (previousSyncPassed) {
                     previousSyncPassed = false
-                    UserRepository.getAllUsers {
+                    SupabaseRepository.getAllUsers {
                         callback(it)
                         previousSyncPassed = true
                         listOfUsers = it
