@@ -10,9 +10,14 @@ class TimeEditActivityViewModel : ViewModel() {
     private val userDataInteractor = UserDataInteractor
     var userSchedules = MutableStateFlow(emptyList<ScheduleModel>())
     var newEntries = mutableListOf<ScheduleModel>()
+    var deletedEntries = mutableListOf<ScheduleModel>()
     fun postNewSchedules(callback: (isSuccessful: Boolean) -> Unit){
         userDataInteractor.postAndUpdateSchedules(newEntries) {
             callback(it)
+        }
+
+        if(deletedEntries.isNotEmpty()){
+            userDataInteractor.removeEntries(deletedEntries)
         }
     }
 
@@ -22,6 +27,18 @@ class TimeEditActivityViewModel : ViewModel() {
 
     fun getCurrentUser(userId: Int): UserModel {
         return userDataInteractor.listOfUsers.find { it.id == userId }!!
+    }
+
+    fun deleteSchedule(scheduleId: Int){
+        var wasScheduleNew = newEntries.remove(newEntries.find { it.id == scheduleId })
+        if(!wasScheduleNew){
+            var entryToDelete = userSchedules.value.find { it.id == scheduleId }!!
+
+            deletedEntries.add(entryToDelete)
+            var newUserSchedules = userSchedules.value.toMutableList()
+            newUserSchedules.remove(entryToDelete)
+            userSchedules.value = newUserSchedules
+        }
     }
 
 }

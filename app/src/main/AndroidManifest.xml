@@ -8,12 +8,17 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@android:drawable/ic_menu_my_calendar"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@android:drawable/ic_menu_my_calendar"
         android:supportsRtl="true"
         android:theme="@style/Theme.Scheduler"
         tools:targetApi="31">
+        <activity
+            android:name=".presentation.fullSchedule.FullScheduleActivity"
+            android:exported="false"
+            android:label="@string/title_activity_full_schedule"
+            android:theme="@style/Theme.Scheduler" />
         <activity
             android:name=".presentation.timeEdit.TimeEditActivity"
             android:exported="false"

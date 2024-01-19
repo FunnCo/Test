@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
 
@@ -89,7 +91,9 @@ fun Greeting(
         mutableStateOf(UserModel(-1, ""))
     }
 
-    viewModel.subscribeToUserBusiness(selectedUser)
+    if(selectedUser.id != -1) {
+        viewModel.subscribeToUserBusiness(selectedUser)
+    }
 
     if (firstLaunch && allUsers.isNotEmpty()) {
         firstLaunch = false
@@ -167,7 +171,7 @@ fun Greeting(
                             Modifier.background(Color(0xFFEF9A9A))
                     ) {
                         Text(
-                            text = if (isFree)
+                            text = if (viewModel.isCurrentUserFree.collectAsState().value)
                                 "Свобода!"
                             else
                                 "Работа",
@@ -181,7 +185,7 @@ fun Greeting(
                     }
 
                     Text(
-                        text = "График занятости",
+                        text = "График занятости сегодня",
                         Modifier
                             .fillMaxWidth()
                             .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
@@ -212,6 +216,22 @@ fun Greeting(
                             )
 
                         }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    TextButton(
+                        onClick = {
+                            val intent = Intent(context, FullScheduleActivity::class.java)
+                            intent.putExtra("user_id", selectedUser.id)
+                            context.startActivity(intent)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = modifier
+                            .align(Alignment.End)
+                            .fillMaxWidth()
+                    ) {
+                        Text(text = "Полное расписание")
                     }
                 }
             }
@@ -244,20 +264,10 @@ fun Greeting(
                 .padding(4.dp)
                 .height(40.dp)
         ) {
-            Text(text = "Изменить расписание ")
+            Text(text = "Изменить расписание")
         }
 
-        TextButton(
-            onClick = { /*TODO*/ },
-            shape = RoundedCornerShape(12.dp),
-            modifier = modifier
-                .align(Alignment.End)
-                .fillMaxWidth()
-                .padding(4.dp)
-                .height(40.dp)
-        ) {
-            Text(text = "Добавить нового пользователя")
-        }
+
     }
 
 

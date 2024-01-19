@@ -7,9 +7,15 @@ import com.funnco.scheduler.data.retrofit.RetrofitInstance
 import com.funnco.scheduler.data.retrofit.dto.ScheduleDTO
 import retrofit2.Call
 import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.Query
 
 interface SupabaseAPI {
 
@@ -21,4 +27,9 @@ interface SupabaseAPI {
 
     @POST("/rest/v1/schedule")
     fun postSchedules(@Body schedules: List<ScheduleDTO>, @Header("Prefer") preference: String = "resolution=merge-duplicates, return=representation",@Header("apiKey") key: String = RetrofitInstance.API_KEY): Call<List<ScheduleDTO>>
+
+
+    @DELETE("/rest/v1/schedule")
+    fun deleteSchedule(@Query("id") id: String, @Header("apiKey") key: String = RetrofitInstance.API_KEY): Call<Any?>
+
 }

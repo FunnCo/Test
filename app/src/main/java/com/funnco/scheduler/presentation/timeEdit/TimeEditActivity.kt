@@ -1,7 +1,7 @@
 package com.funnco.scheduler.presentation.timeEdit
 
 import android.app.Activity
-import android.app.AlertDialog
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -27,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
@@ -138,7 +137,7 @@ fun Greeting2(userId: Int, activity: Activity) {
                         }
                     ) {
                         Text(
-                            text = "${DayUtils.mappedDays[i]}",
+                            text = "${DayUtils.mappedShortDays[i]}",
                             modifier = Modifier
                                 .padding(0.dp, 8.dp)
                                 .align(Alignment.CenterHorizontally),
@@ -287,7 +286,6 @@ fun Greeting2(userId: Int, activity: Activity) {
             } else {
                 Text(text = "Сохранить изменения")
             }
-
         }
 
         TextButton(
@@ -399,6 +397,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                         if (isStartTimeEdited) {
                             schedule.startTime =
                                 LocalTime.of(timePickerState.hour, timePickerState.minute)
+                            schedule.endTime = schedule.startTime.plusHours(1)
                         } else {
                             schedule.endTime =
                                 LocalTime.of(timePickerState.hour, timePickerState.minute)
@@ -421,7 +420,10 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
             text = {
                 Column {
                     TimePicker(state = timePickerState)
-                    TextButton(modifier = Modifier.fillMaxWidth(), onClick = { /*TODO*/ }) {
+                    TextButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                        viewModel.deleteSchedule(schedule.id!!)
+                        isDialogNeeded = false
+                    }) {
                         Text(text = "Удалить запись", color = Color(239, 83, 80, 255))
                     }
                 }

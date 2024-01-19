@@ -10,7 +10,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -27,6 +30,13 @@ object UserDataInteractor {
         }
     }
 
+    fun removeEntries(entriesToDelete: List<ScheduleModel>) {
+        for (entry in entriesToDelete) {
+            UserRepository.deleteSchedule(entry.id!!)
+        }
+
+    }
+
     fun getAllDaysSchedules(userModel: UserModel): List<ScheduleModel> {
         if (userModel.id == -1 || mapOfUsersSchedules[userModel.id]?.isEmpty() != false) {
             return emptyList()
@@ -35,9 +45,10 @@ object UserDataInteractor {
     }
 
     fun postAndUpdateSchedules(updatedSchedules: List<ScheduleModel>, callback: (Boolean) -> Unit) {
-        UserRepository.postSchedules(updatedSchedules.reversed().distinctBy { it.startTime }.distinctBy { it.endTime }.reversed().stream().map { entry -> ScheduleDTO(entry) }
+        UserRepository.postSchedules(updatedSchedules.reversed().distinctBy { it.startTime }
+            .distinctBy { it.endTime }.reversed().stream().map { entry -> ScheduleDTO(entry) }
             .collect(Collectors.toList())) {
-                callback(it)
+            callback(it)
         }
     }
 
@@ -45,42 +56,56 @@ object UserDataInteractor {
         if (userModel.id == -1) {
             return emptyList()
         }
-        return mapOfUsersSchedules[userModel.id]!!.filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
-            .sortedBy { it.startTime }
+        return try {
+            mapOfUsersSchedules[userModel.id]!!.filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
+                .sortedBy { it.startTime }
+        } catch (exception: NullPointerException){
+            emptyList()
+        }
     }
 
     private var previousBusinessJob: Job? = null
+    private var subscribedUser: UserModel? = null
 
     fun isUserFree(userModel: UserModel, callback: (Boolean) -> Unit) {
         if (previousBusinessJob != null) {
             Log.i("TAGG", "Canceled job")
             previousBusinessJob!!.cancel()
         }
+        subscribedUser = userModel
         previousBusinessJob = GlobalScope.launch {
             Log.i("TAGG", "Started job for user ${userModel.id}")
-            while (true) {
-                if (userModel.id == -1) {
-                    callback(true)
+            while (isActive) {
+                if (subscribedUser?.id == -1) {
+                    continue
                 }
 
                 val currentTime = LocalTime.now()
                 val currentDayOfWeek = LocalDate.now().dayOfWeek.value
 
-                if (mapOfUsersSchedules[userModel.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }?.size == 0) {
+                if (mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
+                        ?.isNullOrEmpty() == false) {
+                    val entriesToCheck =
+                        mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
+                            ?: emptyList()
+
+                    var isNegativeFound = false
+                    for (entry in entriesToCheck) {
+                        var result =
+                            currentTime.compareTo(entry.startTime) * currentTime.compareTo(
+                                entry.endTime) > 0
+                        if (!result) {
+                            isNegativeFound = true
+                            break
+                        }
+                    }
+                    callback(!isNegativeFound)
+                } else {
                     callback(true)
                 }
-
-                mapOfUsersSchedules[userModel.id]?.forEach { entry ->
-                    if (entry.dayNumber == currentDayOfWeek) {
-                        callback(
-                            currentTime.compareTo(entry.startTime) * currentTime.compareTo(
-                                entry.endTime
-                            ) > 0
-                        )
-                    }
-                }
-                delay(10000)
+                delay(5000)
             }
+
         }
     }
 
@@ -103,7 +128,7 @@ object UserDataInteractor {
                         callback(requiredMap)
                         previousSyncPassed = true
                     }
-                    delay(10000)
+                    delay(5000)
                 }
             }
         }
@@ -121,7 +146,7 @@ object UserDataInteractor {
                         listOfUsers = it
                     }
                 }
-                delay(10000)
+                delay(5000)
             }
         }
     }
