@@ -1,5 +1,6 @@
 package com.funnco.scheduler.presentation.timeEdit
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
@@ -10,6 +11,9 @@ class TimeEditActivityViewModel : ViewModel() {
     private val userDataInteractor = UserDataInteractor
     var userSchedules = MutableStateFlow(emptyList<ScheduleModel>())
     var newEntries = mutableListOf<ScheduleModel>()
+
+    var isDialogNeededNow = mutableStateOf(false)
+
     var deletedEntries = mutableListOf<ScheduleModel>()
     fun postNewSchedules(callback: (isSuccessful: Boolean) -> Unit){
         userDataInteractor.postAndUpdateSchedules(newEntries) {

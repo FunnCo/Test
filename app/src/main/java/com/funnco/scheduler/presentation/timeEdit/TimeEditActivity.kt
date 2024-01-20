@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,6 +34,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.surfaceColorAtElevation
@@ -93,7 +96,7 @@ fun Greeting2(userId: Int, activity: Activity) {
             text = "Редактирование графика занятости\nпользователя ${selectedUser.nickName}",
             Modifier
                 .fillMaxWidth()
-                .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
+                .padding(PaddingValues(0.dp, 8.dp, 0.dp, 4.dp)),
             textAlign = TextAlign.Center,
             fontSize = 18.sp
         )
@@ -233,6 +236,8 @@ fun Greeting2(userId: Int, activity: Activity) {
                         tempList.add(newModel)
                         viewModel.userSchedules.value = tempList
                         viewModel.newEntries.add(newModel)
+//                        viewModel.isDialogNeededNow.value = true
+
                     }
                 ) {
                     Image(
@@ -258,14 +263,16 @@ fun Greeting2(userId: Int, activity: Activity) {
             onClick = {
                 viewModel.postNewSchedules() { isSuccess ->
                     isSaveClicked = false
-                    if (isSuccess) {
-                        Toast.makeText(context, "Сохранено", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Возникла ошибка при сохранении",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    activity.runOnUiThread {
+                        if (isSuccess) {
+                            Toast.makeText(context, "Сохранено", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Возникла ошибка при сохранении",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 }
                 isSaveClicked = true
@@ -310,10 +317,6 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
 
     var viewModel: TimeEditActivityViewModel = viewModel()
 
-    var isDialogNeeded by remember {
-        mutableStateOf(false)
-    }
-
     var initHour by remember {
         mutableIntStateOf(0)
     }
@@ -321,6 +324,9 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
         mutableIntStateOf(0)
     }
     var isStartTimeEdited by remember {
+        mutableStateOf(false)
+    }
+    var isDialogNeededNow by remember {
         mutableStateOf(false)
     }
 
@@ -344,7 +350,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 onClick = {
                     initHour = schedule.startTime.hour
                     initMinutes = schedule.startTime.minute
-                    isDialogNeeded = true
+                    isDialogNeededNow = true
                     isStartTimeEdited = true
                 }) {
                 Text(
@@ -368,7 +374,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 onClick = {
                     initHour = schedule.endTime.hour
                     initMinutes = schedule.endTime.minute
-                    isDialogNeeded = true
+                    isDialogNeededNow = true
                     isStartTimeEdited = false
 
                 }) {
@@ -380,24 +386,28 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
         }
     }
 
-    if (isDialogNeeded) {
+    if (isDialogNeededNow) {
         var timePickerState = rememberTimePickerState(
             is24Hour = true,
             initialHour = initHour,
             initialMinute = initMinutes
         )
+
+        var noteText by remember {
+            mutableStateOf(schedule.note)
+        }
+
         AlertDialog(
             onDismissRequest = {
-                isDialogNeeded = false
+                isDialogNeededNow = false
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        isDialogNeeded = false
+                        isDialogNeededNow= false
                         if (isStartTimeEdited) {
                             schedule.startTime =
                                 LocalTime.of(timePickerState.hour, timePickerState.minute)
-                            schedule.endTime = schedule.startTime.plusHours(1)
                         } else {
                             schedule.endTime =
                                 LocalTime.of(timePickerState.hour, timePickerState.minute)
@@ -411,7 +421,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
             dismissButton = {
                 TextButton(
                     onClick = {
-                        isDialogNeeded = false
+                        isDialogNeededNow = false
                     }
                 ) {
                     Text("Отмена")
@@ -420,9 +430,16 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
             text = {
                 Column {
                     TimePicker(state = timePickerState)
-                    TextButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                    TextField(
+                        label = { Text(text = "Заметка") },
+                        value = noteText ?: "", onValueChange = {
+                            noteText = it
+                            schedule.note = it
+                        }
+                    )
+                    TextButton(onClick = {
                         viewModel.deleteSchedule(schedule.id!!)
-                        isDialogNeeded = false
+                        isDialogNeededNow = false
                     }) {
                         Text(text = "Удалить запись", color = Color(239, 83, 80, 255))
                     }
@@ -431,3 +448,5 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
         )
     }
 }
+
+

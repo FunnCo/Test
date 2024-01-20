@@ -9,6 +9,7 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.serializer.JacksonSerializer
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 
 object SupabaseRepository {
@@ -33,10 +34,16 @@ object SupabaseRepository {
     }
 
     suspend fun upsertSchedules(newSchedule: List<ScheduleModel>, callback: (Boolean) -> Unit) {
-        supabase.from("schedule").upsert(newSchedule) {
-            this.explain()
+        try {
+            supabase.from("schedule").upsert(newSchedule) {
+                delay(15)
+                callback(true)
+            }
+        } catch (exception: Exception){
+            Log.e("TAGGG", "Error occurred: ${exception}")
+            callback(false)
         }
-1    }
+    }
 
     suspend fun getAllSchedules(callback: (List<ScheduleModel>) -> Unit) {
         val schedules = supabase.from("schedule").select().decodeList<ScheduleModel>()

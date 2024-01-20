@@ -1,6 +1,5 @@
 package com.funnco.scheduler.data.model
 
-import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalTime
 
@@ -14,5 +13,7 @@ data class ScheduleModel(
     @JsonProperty("endTime")
     var endTime: LocalTime = LocalTime.now(),
     @JsonProperty("dayNumber")
-    val dayNumber: Int
+    val dayNumber: Int,
+    @JsonProperty("note")
+    var note: String? = null
 )

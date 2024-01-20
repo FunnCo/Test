@@ -1,13 +1,17 @@
 package com.funnco.scheduler.presentation.main
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.ColorRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +20,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +34,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -40,13 +48,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
@@ -62,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting("Android")
+                    Greeting(this)
                 }
             }
         }
@@ -74,7 +85,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Greeting(
-    name: String,
+    activity: Activity,
     modifier: Modifier = Modifier,
     viewModel: MainActivityViewModel = viewModel()
 ) {
@@ -91,7 +102,11 @@ fun Greeting(
         mutableStateOf(UserModel(-1, ""))
     }
 
-    if(selectedUser.id != -1) {
+    var isTeacherModeEnabled by remember {
+        mutableStateOf(getTeacherModeFromSharedPrefs(activity))
+    }
+
+    if (selectedUser.id != -1) {
         viewModel.subscribeToUserBusiness(selectedUser)
     }
 
@@ -170,22 +185,35 @@ fun Greeting(
                         else
                             Modifier.background(Color(0xFFEF9A9A))
                     ) {
-                        Text(
-                            text = if (viewModel.isCurrentUserFree.collectAsState().value)
-                                "Свобода!"
-                            else
-                                "Работа",
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(PaddingValues(0.dp, 32.dp, 0.dp, 32.dp)),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            textAlign = TextAlign.Center,
-                            fontSize = 24.sp
-                        )
+                        Column {
+                            Text(
+                                text = "Сейчас",
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(PaddingValues(0.dp, 8.dp, 0.dp, 0.dp)),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                textAlign = TextAlign.Center,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = if (viewModel.isCurrentUserFree.collectAsState().value)
+                                    "Свобода!"
+                                else
+                                    "Работа",
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(PaddingValues(0.dp, 14.dp, 0.dp, 32.dp)),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                textAlign = TextAlign.Center,
+                                fontSize = 24.sp
+                            )
+                        }
+
                     }
 
+
                     Text(
-                        text = "График занятости сегодня",
+                        text = "Расписание сегодня",
                         Modifier
                             .fillMaxWidth()
                             .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
@@ -205,16 +233,19 @@ fun Greeting(
                             )
                         }
                     } else {
-
-                        for (entry in currentSchedule) {
-
-                            Text(
-                                text = "${entry.startTime} - ${entry.endTime}", Modifier
-                                    .fillMaxWidth()
-                                    .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
-                                textAlign = TextAlign.Center
-                            )
-
+                        if(!isTeacherModeEnabled){
+                            for (entry in currentSchedule) {
+                                Text(
+                                    text = "${entry.startTime} - ${entry.endTime}", Modifier
+                                        .fillMaxWidth()
+                                        .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            for (entry in currentSchedule){
+                                TeacherScheduleEntry(entry = entry)
+                            }
                         }
                     }
 
@@ -233,6 +264,40 @@ fun Greeting(
                     ) {
                         Text(text = "Полное расписание")
                     }
+
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .height(5.dp)
+                            .fillMaxWidth()
+                            .padding(8.dp, 4.dp, 8.dp, 0.dp)
+                            .background(
+                                Color.White
+                            )
+                            .alpha(0.75f),
+                        content = {}
+                    )
+
+                    Row {
+                        Text(
+                            modifier = Modifier
+                                .weight(5f, true)
+                                .align(Alignment.CenterVertically)
+                                .padding(12.dp, 0.dp, 0.dp, 0.dp),
+                            text = "Режим учителя",
+                            textAlign = TextAlign.Start,
+                        )
+                        Switch(modifier = Modifier
+                            .scale(0.85f)
+                            .padding(0.dp, 0.dp, 12.dp, 0.dp),
+                            checked = isTeacherModeEnabled,
+                            onCheckedChange = {
+                                isTeacherModeEnabled = !isTeacherModeEnabled
+                                writeTeacherModeInSharedPrefs(activity, isTeacherModeEnabled)
+                            })
+                    }
+
+
                 }
             }
         } else {
@@ -250,26 +315,36 @@ fun Greeting(
             }
         }
 
-        Button(
-            onClick = {
-                val intent = Intent(context, TimeEditActivity::class.java)
-                intent.putExtra("user_id", selectedUser.id)
-                context.startActivity(intent)
-            },
-            shape = RoundedCornerShape(12.dp),
-            modifier = modifier
-                .align(Alignment.End)
-                .fillMaxWidth()
-                .alpha(if (selectedUser.id != -1) 1f else 0f)
-                .padding(4.dp)
-                .height(40.dp)
-        ) {
-            Text(text = "Изменить расписание")
+        if(isTeacherModeEnabled) {
+            Button(
+                onClick = {
+                    val intent = Intent(context, TimeEditActivity::class.java)
+                    intent.putExtra("user_id", selectedUser.id)
+                    context.startActivity(intent)
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = modifier
+                    .align(Alignment.End)
+                    .fillMaxWidth()
+                    .alpha(if (selectedUser.id != -1) 1f else 0f)
+                    .padding(4.dp)
+                    .height(40.dp)
+            ) {
+                Text(text = "Изменить расписание")
+            }
         }
-
-
     }
+}
 
 
+
+fun writeTeacherModeInSharedPrefs(activity: Activity, mode: Boolean){
+    val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
+    sharedPrefs.edit().putBoolean("TeacherMode", mode).commit()
+}
+
+fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean{
+    val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
+    return sharedPrefs.getBoolean("TeacherMode", false)
 }
 
