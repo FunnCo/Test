@@ -11,19 +11,24 @@ class MainActivityViewModel : ViewModel() {
     private val userDataInteractor = UserDataInteractor
     val listOfUsers = MutableStateFlow(emptyList<UserModel>())
     var isCurrentUserFree = MutableStateFlow(true)
+    var isUpdateAllowed = true
     var currentSchedule = MutableStateFlow(emptyList<ScheduleModel>())
 
 
     fun subscribeToUserBusiness(userModel: UserModel) {
         userDataInteractor.isUserFree(userModel) {
-            isCurrentUserFree.value = it
-            currentSchedule.value = userDataInteractor.getCurrentDaySchedules(userModel)
+            if (isUpdateAllowed) {
+                isCurrentUserFree.value = it
+                currentSchedule.value = userDataInteractor.getCurrentDaySchedules(userModel)
+            }
         }
     }
 
     init {
         userDataInteractor.subscribeToUserUpdate() {
-            listOfUsers.value = it
+            if (isUpdateAllowed) {
+                listOfUsers.value = it
+            }
         }
     }
 

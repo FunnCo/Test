@@ -117,6 +117,10 @@ fun Greeting(
 
     var isFree = viewModel.isCurrentUserFree.collectAsState().value
 
+    var isTempNoteBeingEdited by remember {
+        mutableStateOf(false)
+    }
+
     var isExpanded by remember {
         mutableStateOf(false)
     }
@@ -244,7 +248,7 @@ fun Greeting(
                             }
                         } else {
                             for (entry in currentSchedule){
-                                TeacherScheduleEntry(entry = entry)
+                                TeacherScheduleEntry(entry = entry, 0, onTempNoteEditingStateChange = {viewModel.isUpdateAllowed=!it} )
                             }
                         }
                     }

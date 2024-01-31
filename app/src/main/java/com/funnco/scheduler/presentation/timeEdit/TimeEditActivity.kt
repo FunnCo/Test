@@ -1,7 +1,6 @@
 package com.funnco.scheduler.presentation.timeEdit
 
 import android.app.Activity
-import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -10,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -56,7 +53,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.ScheduleModel
-import com.funnco.scheduler.domain.DayUtils
+import com.funnco.scheduler.domain.DateUtils
+import com.funnco.scheduler.domain.model.NoteModel
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import java.time.LocalDate
 import java.time.LocalTime
@@ -140,7 +138,7 @@ fun Greeting2(userId: Int, activity: Activity) {
                         }
                     ) {
                         Text(
-                            text = "${DayUtils.mappedShortDays[i]}",
+                            text = "${DateUtils.mappedShortDays[i]}",
                             modifier = Modifier
                                 .padding(0.dp, 8.dp)
                                 .align(Alignment.CenterHorizontally),
@@ -232,7 +230,7 @@ fun Greeting2(userId: Int, activity: Activity) {
                             )
                         val endTime = startTime.plusHours(1)
                         val newModel =
-                            ScheduleModel(null, userId, startTime, endTime, currentSelectedDay)
+                            ScheduleModel(null, userId, startTime, endTime, currentSelectedDay, "")
                         tempList.add(newModel)
                         viewModel.userSchedules.value = tempList
                         viewModel.newEntries.add(newModel)

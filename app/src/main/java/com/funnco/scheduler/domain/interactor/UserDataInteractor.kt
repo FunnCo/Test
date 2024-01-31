@@ -5,6 +5,8 @@ import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
 
 import com.funnco.scheduler.data.repository.SupabaseRepository
+import com.funnco.scheduler.domain.model.NoteModel
+import com.funnco.scheduler.domain.model.SimpleScheduleModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -15,6 +17,8 @@ import java.time.LocalTime
 import java.util.stream.Collectors
 
 object UserDataInteractor {
+
+    const val REQUEST_DELAY = 2000L
 
     private var mapOfUsersSchedules: Map<Int, List<ScheduleModel>> = emptyMap()
     var listOfUsers: List<UserModel> = emptyList()
@@ -31,6 +35,12 @@ object UserDataInteractor {
         }
     }
 
+    fun insertOrChangeTempNote(tempNoteModel: NoteModel, callback: (Boolean, NoteModel) -> Unit) {
+        GlobalScope.launch {
+            SupabaseRepository.upsertTempNote(tempNoteModel, callback)
+        }
+    }
+
     fun getAllDaysSchedules(userModel: UserModel): List<ScheduleModel> {
         if (userModel.id == -1 || mapOfUsersSchedules[userModel.id]?.isEmpty() != false) {
             return emptyList()
@@ -42,7 +52,10 @@ object UserDataInteractor {
         GlobalScope.launch {
             SupabaseRepository.upsertSchedules(updatedSchedules.reversed()
                 .distinctBy { it.startTime.toSecondOfDay() }
-                .distinctBy { it.endTime.toSecondOfDay() }.reversed().stream()
+                .distinctBy { it.endTime.toSecondOfDay() }
+                .reversed()
+                .stream()
+                .map { SimpleScheduleModel(it) }
                 .collect(Collectors.toList())
             ) {
                 callback(it)
@@ -102,7 +115,7 @@ object UserDataInteractor {
                 } else {
                     callback(true)
                 }
-                delay(5000)
+                delay(REQUEST_DELAY)
             }
 
         }
@@ -127,7 +140,7 @@ object UserDataInteractor {
                         callback(requiredMap)
                         previousSyncPassed = true
                     }
-                    delay(5000)
+                    delay(REQUEST_DELAY)
                 }
             }
         }
@@ -145,7 +158,7 @@ object UserDataInteractor {
                         listOfUsers = it
                     }
                 }
-                delay(5000)
+                delay(REQUEST_DELAY)
             }
         }
     }

@@ -5,12 +5,17 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JSR310Module
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.domain.model.NoteModel
+import com.funnco.scheduler.domain.model.SimpleScheduleModel
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.serializer.JacksonSerializer
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
+
+
 
 object SupabaseRepository {
 
@@ -25,7 +30,7 @@ object SupabaseRepository {
         defaultSerializer = JacksonSerializer(objectMapper)
     }
 
-    suspend fun deleteSchedule (modelsToDelete: List<ScheduleModel> ){
+    suspend fun deleteSchedule(modelsToDelete: List<ScheduleModel>) {
         supabase.from("schedule").delete {
             filter {
                 ScheduleModel::id isIn modelsToDelete.map { it.id }
@@ -33,21 +38,55 @@ object SupabaseRepository {
         }
     }
 
-    suspend fun upsertSchedules(newSchedule: List<ScheduleModel>, callback: (Boolean) -> Unit) {
+    suspend fun upsertSchedules(newSchedule: List<SimpleScheduleModel>, callback: (Boolean) -> Unit) {
         try {
             supabase.from("schedule").upsert(newSchedule) {
                 delay(15)
                 callback(true)
             }
-        } catch (exception: Exception){
+        } catch (exception: Exception) {
             Log.e("TAGGG", "Error occurred: ${exception}")
             callback(false)
         }
     }
 
+    suspend fun upsertTempNote(
+        noteToInsert: NoteModel,
+        callback: (Boolean, NoteModel) -> Unit
+    ) {
+        try {
+            val insertedValue = supabase.from("tempNotes").upsert(noteToInsert) {
+                select()
+            }.decodeSingle<NoteModel>()
+            callback(true, insertedValue)
+        } catch (exception: Exception) {
+            Log.e("SupabaseRepo", " Error occurred during upsertTempNote: ${exception}")
+            callback(false, noteToInsert)
+        }
+    }
+
     suspend fun getAllSchedules(callback: (List<ScheduleModel>) -> Unit) {
-        val schedules = supabase.from("schedule").select().decodeList<ScheduleModel>()
+        val columns = Columns.raw(
+            """
+            id,
+            userId,
+            startTime,
+            endTime,
+            dayNumber,
+            note,
+            tempNotes (
+                id,
+                note,
+                scheduleId,
+                dateOfNote,
+                flag
+            )
+        """.trimIndent().replace("\n", " ")
+        )
+
+        val schedules = supabase.from("schedule").select(columns).decodeList<ScheduleModel>()
         callback(schedules)
+
     }
 
     suspend fun getAllUsers(callback: (List<UserModel>) -> Unit) {
