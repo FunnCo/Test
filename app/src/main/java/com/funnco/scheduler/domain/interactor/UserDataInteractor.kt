@@ -5,6 +5,7 @@ import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
 
 import com.funnco.scheduler.data.repository.SupabaseRepository
+import com.funnco.scheduler.domain.model.BusynessType
 import com.funnco.scheduler.domain.model.NoteModel
 import com.funnco.scheduler.domain.model.SimpleScheduleModel
 import kotlinx.coroutines.GlobalScope
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.stream.Collectors
+import kotlin.math.abs
 
 object UserDataInteractor {
 
@@ -78,7 +80,37 @@ object UserDataInteractor {
     private var previousBusinessJob: Job? = null
     private var subscribedUser: UserModel? = null
 
-    fun isUserFree(userModel: UserModel, callback: (Boolean) -> Unit) {
+    private fun processBusyness(userTodaySchedule: List<ScheduleModel>?): BusynessType{
+        val currentTime = LocalTime.now()
+        val currentDayOfWeek = LocalDate.now().dayOfWeek.value
+
+        if (userTodaySchedule?.isNullOrEmpty() == false) {
+            for (entry in userTodaySchedule) {
+
+                var startTimeToCurrentDiff = currentTime.toSecondOfDay() - entry.startTime.toSecondOfDay()
+                var endTimeToCurrentDiff = currentTime.toSecondOfDay() - entry.endTime.toSecondOfDay()
+
+                if(startTimeToCurrentDiff > -900 && startTimeToCurrentDiff <= 0){
+                    return BusynessType.PREPARATION
+                }
+                if(endTimeToCurrentDiff < 900 && endTimeToCurrentDiff >= 0){
+                    return  BusynessType.FINISHING
+                }
+
+                var result =
+                    currentTime.compareTo(entry.startTime) * currentTime.compareTo(
+                        entry.endTime
+                    ) > 0
+                if (!result) {
+                    return BusynessType.BUSY
+                }
+            }
+        }
+
+        return BusynessType.FREE
+    }
+
+    fun isUserFree(userModel: UserModel, callback: (BusynessType) -> Unit) {
         if (previousBusinessJob != null) {
             Log.i("TAGG", "Canceled job")
             previousBusinessJob!!.cancel()
@@ -90,31 +122,11 @@ object UserDataInteractor {
                 if (subscribedUser?.id == -1) {
                     continue
                 }
-
-                val currentTime = LocalTime.now()
                 val currentDayOfWeek = LocalDate.now().dayOfWeek.value
-
-                if (mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
-                        ?.isNullOrEmpty() == false) {
-                    val entriesToCheck =
-                        mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
-                            ?: emptyList()
-
-                    var isNegativeFound = false
-                    for (entry in entriesToCheck) {
-                        var result =
-                            currentTime.compareTo(entry.startTime) * currentTime.compareTo(
-                                entry.endTime
-                            ) > 0
-                        if (!result) {
-                            isNegativeFound = true
-                            break
-                        }
-                    }
-                    callback(!isNegativeFound)
-                } else {
-                    callback(true)
-                }
+                val entriesToCheck =
+                    mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
+                        ?: emptyList()
+                callback(processBusyness(entriesToCheck))
                 delay(REQUEST_DELAY)
             }
 

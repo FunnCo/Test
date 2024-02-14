@@ -1,17 +1,19 @@
 package com.funnco.scheduler.presentation.main
 
 import android.app.Activity
+import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.annotation.ColorRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,13 +22,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,22 +48,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.domain.model.BusynessType
 import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+//        if(!isRoleHeldByApp(RoleManager.ROLE_CALL_REDIRECTION)){
+//            acquireRole(RoleManager.ROLE_CALL_REDIRECTION)
+//        }
+//        requestOverlayPermission()
         setContent {
             SchedulerTheme {
                 // A surface container using the 'background' color from the theme
@@ -76,6 +79,49 @@ class MainActivity : ComponentActivity() {
                     Greeting(this)
                 }
             }
+        }
+    }
+
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+            return
+        }
+        val myIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+        myIntent.data = Uri.parse("package:$packageName")
+        startActivityForResult(myIntent, 101)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if(requestCode==101){
+            if(!Settings.canDrawOverlays(this)){
+                requestOverlayPermission()
+            }
+        }
+
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun isRoleHeldByApp(roleName: String): Boolean {
+        val roleManager: RoleManager? = getSystemService(RoleManager::class.java)
+        return roleManager!!.isRoleHeld(roleName)
+    }
+
+    private fun isRoleAvailable(roleName: String): Boolean {
+        val roleManager: RoleManager? = getSystemService(RoleManager::class.java)
+        return roleManager!!.isRoleAvailable(roleName)
+    }
+    private fun acquireRole(roleName: String){
+        val roleManager: RoleManager?
+        if (isRoleAvailable(roleName)) {
+            roleManager = getSystemService(RoleManager::class.java)
+            val intent = roleManager.createRequestRoleIntent(roleName)
+            startActivityForResult(intent, 1)
+        } else {
+            Toast.makeText(
+                this,
+                "Redirection call with role in not available",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -92,7 +138,6 @@ fun Greeting(
 
     val context = LocalContext.current
 
-
     var firstLaunch by remember {
         mutableStateOf(true)
     }
@@ -107,7 +152,7 @@ fun Greeting(
     }
 
     if (selectedUser.id != -1) {
-        viewModel.subscribeToUserBusiness(selectedUser)
+        viewModel.getUserBusyness(selectedUser)
     }
 
     if (firstLaunch && allUsers.isNotEmpty()) {
@@ -116,10 +161,6 @@ fun Greeting(
     }
 
     var isFree = viewModel.isCurrentUserFree.collectAsState().value
-
-    var isTempNoteBeingEdited by remember {
-        mutableStateOf(false)
-    }
 
     var isExpanded by remember {
         mutableStateOf(false)
@@ -184,10 +225,12 @@ fun Greeting(
                         .fillMaxHeight()
                 ) {
                     Row(
-                        if (isFree)
-                            Modifier.background(Color(0xFFC5E1A5))
-                        else
-                            Modifier.background(Color(0xFFEF9A9A))
+                        when(isFree){
+                            BusynessType.FREE -> Modifier.background(Color(0xFFAED581))
+                            BusynessType.BUSY -> Modifier.background(Color(0xFFE57373))
+                            else -> Modifier.background(Color(0xFFFFF176))
+                        }
+
                     ) {
                         Column {
                             Text(
@@ -200,10 +243,12 @@ fun Greeting(
                                 fontSize = 16.sp
                             )
                             Text(
-                                text = if (viewModel.isCurrentUserFree.collectAsState().value)
-                                    "Свобода!"
-                                else
-                                    "Работа",
+                                text = when (viewModel.isCurrentUserFree.collectAsState().value){
+                                    BusynessType.FREE -> "Свобода"
+                                    BusynessType.BUSY -> "Работа"
+                                    BusynessType.PREPARATION -> "Подготовка"
+                                    else -> "Завершение"
+                                },
                                 Modifier
                                     .fillMaxWidth()
                                     .padding(PaddingValues(0.dp, 14.dp, 0.dp, 32.dp)),

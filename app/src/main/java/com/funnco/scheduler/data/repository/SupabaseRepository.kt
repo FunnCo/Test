@@ -90,7 +90,14 @@ object SupabaseRepository {
     }
 
     suspend fun getAllUsers(callback: (List<UserModel>) -> Unit) {
-        val users = supabase.from("profiles").select().decodeList<UserModel>()
+        val columns = Columns.raw(
+            """
+            id,
+            nickName
+        """.trimIndent().replace("\n", " ")
+        )
+
+        val users = supabase.from("profiles").select(columns).decodeList<UserModel>()
         callback(users)
     }
 }

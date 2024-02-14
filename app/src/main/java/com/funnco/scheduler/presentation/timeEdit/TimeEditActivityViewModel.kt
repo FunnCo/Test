@@ -12,12 +12,14 @@ class TimeEditActivityViewModel : ViewModel() {
     var userSchedules = MutableStateFlow(emptyList<ScheduleModel>())
     var newEntries = mutableListOf<ScheduleModel>()
 
-    var isDialogNeededNow = mutableStateOf(false)
-
     var deletedEntries = mutableListOf<ScheduleModel>()
     fun postNewSchedules(callback: (isSuccessful: Boolean) -> Unit){
-        userDataInteractor.postAndUpdateSchedules(newEntries) {
-            callback(it)
+        userDataInteractor.postAndUpdateSchedules(newEntries) {isSuccess ->
+            callback(isSuccess)
+            if(isSuccess){
+                newEntries = mutableListOf<ScheduleModel>()
+            }
+
         }
 
         if(deletedEntries.isNotEmpty()){

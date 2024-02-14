@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:allowBackup="true"
@@ -35,6 +36,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+<!--        <service-->
+<!--            android:name=".domain.service.OutgoingCallsRedirectionService"-->
+<!--            android:exported="true"-->
+<!--            android:permission="android.permission.BIND_CALL_REDIRECTION_SERVICE">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.telecom.CallRedirectionService" />-->
+<!--            </intent-filter>-->
+<!--        </service>-->
+<!--        <service-->
+<!--            android:name=".domain.service.IncomingCallsHandlerService"-->
+<!--            android:permission="android.permission.BIND_INCALL_SERVICE"-->
+<!--            android:exported="true">-->
+<!--            <meta-data-->
+<!--                android:name="android.telecom.IN_CALL_SERVICE_UI"-->
+<!--                android:value="true" />-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.telecom.InCallService" />-->
+<!--            </intent-filter>-->
+
+<!--        </service>-->
+
     </application>
 
 </manifest>
