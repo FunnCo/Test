@@ -336,12 +336,12 @@ fun Greeting(
                                 }
                             } else {
 
-                                var weekOffset : Long = 0
+                                var weekOffset: Long = 0
                                 var currentDayNumber = LocalDate.now().dayOfWeek.value
                                 if (currentDayNumber + dayOffset > 7) {
                                     weekOffset = 1
                                 }
-                                if(currentDayNumber + dayOffset < 0) {
+                                if (currentDayNumber + dayOffset < 0) {
                                     weekOffset = -1
                                 }
 
@@ -431,20 +431,22 @@ fun Greeting(
             }
         }
 
-        TextButton(
-            onClick = {
-                val intent = Intent(context, FullScheduleActivity::class.java)
-                intent.putExtra("user_id", selectedUser.id)
-                context.startActivity(intent)
-            },
-            shape = RoundedCornerShape(12.dp),
-            modifier = modifier
-                .weight(1f, false)
-                .align(Alignment.End)
-                .padding(4.dp, 0.dp)
-                .fillMaxWidth()
-        ) {
-            Text(text = "Полное расписание")
+        if (selectedUser.id != -1) {
+            TextButton(
+                onClick = {
+                    val intent = Intent(context, FullScheduleActivity::class.java)
+                    intent.putExtra("user_id", selectedUser.id)
+                    context.startActivity(intent)
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = modifier
+                    .weight(1f, false)
+                    .align(Alignment.End)
+                    .padding(4.dp, 0.dp)
+                    .fillMaxWidth()
+            ) {
+                Text(text = "Полное расписание")
+            }
         }
     }
 }
