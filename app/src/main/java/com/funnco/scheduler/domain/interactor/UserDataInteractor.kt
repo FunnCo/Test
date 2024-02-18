@@ -1,6 +1,7 @@
 package com.funnco.scheduler.domain.interactor
 
 import android.util.Log
+import androidx.compose.ui.text.toLowerCase
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
 
@@ -15,6 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
+import java.util.Locale
 import java.util.stream.Collectors
 import kotlin.math.abs
 
@@ -70,8 +72,14 @@ object UserDataInteractor {
             return emptyList()
         }
         return try {
-            mapOfUsersSchedules[userModel.id]!!.filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
+            mapOfUsersSchedules[userModel.id]!!
+                .filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
                 .sortedBy { it.startTime }
+                .filter { schedule ->
+                    schedule.tempNotes?.stream()
+                        ?.filter { it.note
+                            .toLowerCase(Locale.ROOT)
+                            .contains("отмен") }?.collect(Collectors.toList())?.isEmpty() ?: true}
         } catch (exception: NullPointerException) {
             emptyList()
         }
@@ -82,7 +90,6 @@ object UserDataInteractor {
 
     private fun processBusyness(userTodaySchedule: List<ScheduleModel>?): BusynessType{
         val currentTime = LocalTime.now()
-        val currentDayOfWeek = LocalDate.now().dayOfWeek.value
 
         if (userTodaySchedule?.isNullOrEmpty() == false) {
             for (entry in userTodaySchedule) {
@@ -122,14 +129,10 @@ object UserDataInteractor {
                 if (subscribedUser?.id == -1) {
                     continue
                 }
-                val currentDayOfWeek = LocalDate.now().dayOfWeek.value
-                val entriesToCheck =
-                    mapOfUsersSchedules[subscribedUser?.id]?.filter { entry -> entry.dayNumber == currentDayOfWeek }
-                        ?: emptyList()
+                val entriesToCheck = getCurrentDaySchedules(userModel)
                 callback(processBusyness(entriesToCheck))
                 delay(REQUEST_DELAY)
             }
-
         }
     }
 
