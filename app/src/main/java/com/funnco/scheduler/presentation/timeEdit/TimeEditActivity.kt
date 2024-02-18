@@ -1,6 +1,7 @@
 package com.funnco.scheduler.presentation.timeEdit
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -55,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.domain.DateUtils
 import com.funnco.scheduler.domain.model.NoteModel
+import com.funnco.scheduler.presentation.main.MainActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import java.time.LocalDate
 import java.time.LocalTime
@@ -73,6 +75,11 @@ class TimeEditActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onBackPressed() {
+        startActivity(Intent(this, MainActivity::class.java))
+        this.finish()
     }
 }
 

@@ -1,7 +1,6 @@
 package com.funnco.scheduler.domain.interactor
 
 import android.util.Log
-import androidx.compose.ui.text.toLowerCase
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.data.model.UserModel
 
@@ -18,7 +17,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.util.Locale
 import java.util.stream.Collectors
-import kotlin.math.abs
 
 object UserDataInteractor {
 
@@ -67,19 +65,37 @@ object UserDataInteractor {
         }
     }
 
-    fun getCurrentDaySchedules(userModel: UserModel): List<ScheduleModel> {
+    fun getDaySchedules(userModel: UserModel, dayOffset: Int = 0): List<ScheduleModel> {
         if (userModel.id == -1) {
             return emptyList()
         }
+        var selectedDayNumber = LocalDate.now().dayOfWeek.value
+        if (selectedDayNumber + dayOffset > 7) {
+            selectedDayNumber = (selectedDayNumber + dayOffset) % 7
+        } else {
+            if (selectedDayNumber + dayOffset < 1) {
+                selectedDayNumber = 7 - (selectedDayNumber + dayOffset)
+            } else {
+                selectedDayNumber += dayOffset
+            }
+        }
+
+        Log.d("TEST", "$selectedDayNumber")
         return try {
             mapOfUsersSchedules[userModel.id]!!
-                .filter { it.dayNumber == LocalDate.now().dayOfWeek.value }
+                .filter { it.dayNumber == selectedDayNumber }
                 .sortedBy { it.startTime }
                 .filter { schedule ->
                     schedule.tempNotes?.stream()
-                        ?.filter { it.note
-                            .toLowerCase(Locale.ROOT)
-                            .contains("отмен") }?.collect(Collectors.toList())?.isEmpty() ?: true}
+                        ?.filter {
+                            it.note
+                                .toLowerCase(Locale.ROOT)
+                                .contains("отмен")
+                                    && it.dateOfNote!!.isEqual(LocalDate.now().plusDays(dayOffset.toLong()))
+
+                        }
+                        ?.collect(Collectors.toList())?.isEmpty() ?: true
+                }
         } catch (exception: NullPointerException) {
             emptyList()
         }
@@ -88,20 +104,22 @@ object UserDataInteractor {
     private var previousBusinessJob: Job? = null
     private var subscribedUser: UserModel? = null
 
-    private fun processBusyness(userTodaySchedule: List<ScheduleModel>?): BusynessType{
+    private fun processBusyness(userTodaySchedule: List<ScheduleModel>?): BusynessType {
         val currentTime = LocalTime.now()
 
         if (userTodaySchedule?.isNullOrEmpty() == false) {
             for (entry in userTodaySchedule) {
 
-                var startTimeToCurrentDiff = currentTime.toSecondOfDay() - entry.startTime.toSecondOfDay()
-                var endTimeToCurrentDiff = currentTime.toSecondOfDay() - entry.endTime.toSecondOfDay()
+                var startTimeToCurrentDiff =
+                    currentTime.toSecondOfDay() - entry.startTime.toSecondOfDay()
+                var endTimeToCurrentDiff =
+                    currentTime.toSecondOfDay() - entry.endTime.toSecondOfDay()
 
-                if(startTimeToCurrentDiff > -900 && startTimeToCurrentDiff <= 0){
+                if (startTimeToCurrentDiff > -900 && startTimeToCurrentDiff <= 0) {
                     return BusynessType.PREPARATION
                 }
-                if(endTimeToCurrentDiff < 900 && endTimeToCurrentDiff >= 0){
-                    return  BusynessType.FINISHING
+                if (endTimeToCurrentDiff < 900 && endTimeToCurrentDiff >= 0) {
+                    return BusynessType.FINISHING
                 }
 
                 var result =
@@ -129,7 +147,7 @@ object UserDataInteractor {
                 if (subscribedUser?.id == -1) {
                     continue
                 }
-                val entriesToCheck = getCurrentDaySchedules(userModel)
+                val entriesToCheck = getDaySchedules(userModel)
                 callback(processBusyness(entriesToCheck))
                 delay(REQUEST_DELAY)
             }

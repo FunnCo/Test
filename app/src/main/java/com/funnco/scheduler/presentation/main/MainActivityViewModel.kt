@@ -16,11 +16,15 @@ class MainActivityViewModel : ViewModel() {
     var currentSchedule = MutableStateFlow(emptyList<ScheduleModel>())
 
 
+    fun getScheduleForDay(userModel: UserModel, dayOffset: Int): List<ScheduleModel> {
+        return userDataInteractor.getDaySchedules(userModel, dayOffset)
+    }
+
     fun getUserBusyness(userModel: UserModel) {
         userDataInteractor.isUserFree(userModel){
             if (isUpdateAllowed) {
-                isCurrentUserFree.value = it
-                currentSchedule.value = userDataInteractor.getCurrentDaySchedules(userModel)
+                isCurrentUserFree.value = it                
+                currentSchedule.value = userDataInteractor.getDaySchedules(userModel)
             }
         }
     }

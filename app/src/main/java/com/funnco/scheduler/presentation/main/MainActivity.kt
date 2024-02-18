@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -54,11 +57,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.domain.DateUtils
 import com.funnco.scheduler.domain.model.BusynessType
 import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
+import java.time.LocalDate
 
 
 class MainActivity : ComponentActivity() {
@@ -92,8 +97,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if(requestCode==101){
-            if(!Settings.canDrawOverlays(this)){
+        if (requestCode == 101) {
+            if (!Settings.canDrawOverlays(this)) {
                 requestOverlayPermission()
             }
         }
@@ -110,7 +115,8 @@ class MainActivity : ComponentActivity() {
         val roleManager: RoleManager? = getSystemService(RoleManager::class.java)
         return roleManager!!.isRoleAvailable(roleName)
     }
-    private fun acquireRole(roleName: String){
+
+    private fun acquireRole(roleName: String) {
         val roleManager: RoleManager?
         if (isRoleAvailable(roleName)) {
             roleManager = getSystemService(RoleManager::class.java)
@@ -128,7 +134,7 @@ class MainActivity : ComponentActivity() {
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun Greeting(
     activity: Activity,
@@ -157,7 +163,8 @@ fun Greeting(
 
     if (firstLaunch && allUsers.isNotEmpty()) {
         firstLaunch = false
-        selectedUser = allUsers[0]
+        val desiredIdToOpen = getLastSelectedUserFromSharedPrefs(activity)
+        selectedUser = allUsers.find { it.id == desiredIdToOpen} ?: allUsers[0]
     }
 
     var isFree = viewModel.isCurrentUserFree.collectAsState().value
@@ -205,150 +212,191 @@ fun Greeting(
                         onClick = {
                             selectedUser = it
                             isExpanded = false
+                            writeLastSelectedUserToSharedPrefs(activity, it.id)
                         }
                     )
                 }
             }
         }
 
+        val pagerState = rememberPagerState(initialPage = 2) {
+            5
+        }
+
         if (selectedUser.id != -1) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(5f, true)
-                    .padding(4.dp, 8.dp, 4.dp, 8.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
+            HorizontalPager(
+                state = pagerState,
+
+                modifier = Modifier.weight(12f, true),
+                pageSpacing = 4.dp,
+                beyondBoundsPageCount = 4
+            ) { index ->
+
+                val dayOffset = index - 2
+
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight()
+                        .weight(5f, true)
+                        .padding(4.dp, 8.dp, 4.dp, 8.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Row(
-                        when(isFree){
-                            BusynessType.FREE -> Modifier.background(Color(0xFFAED581))
-                            BusynessType.BUSY -> Modifier.background(Color(0xFFE57373))
-                            else -> Modifier.background(Color(0xFFFFF176))
-                        }
-
-                    ) {
-                        Column {
-                            Text(
-                                text = "Сейчас",
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(PaddingValues(0.dp, 8.dp, 0.dp, 0.dp)),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                textAlign = TextAlign.Center,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = when (viewModel.isCurrentUserFree.collectAsState().value){
-                                    BusynessType.FREE -> "Свобода"
-                                    BusynessType.BUSY -> "Работа"
-                                    BusynessType.PREPARATION -> "Подготовка"
-                                    else -> "Завершение"
-                                },
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(PaddingValues(0.dp, 14.dp, 0.dp, 32.dp)),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                textAlign = TextAlign.Center,
-                                fontSize = 24.sp
-                            )
-                        }
-
-                    }
-
-
-                    Text(
-                        text = "Расписание сегодня",
-                        Modifier
+                    Column(
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
-                        textAlign = TextAlign.Center,
-                        fontSize = 18.sp
-                    )
+                            .fillMaxHeight()
+                    ) {
 
-                    val currentSchedule = viewModel.currentSchedule.collectAsState().value
+                        if (dayOffset == 0) {
+                            Row(
+                                when (isFree) {
+                                    BusynessType.FREE -> Modifier.background(Color(0xFFAED581))
+                                    BusynessType.BUSY -> Modifier.background(Color(0xFFE57373))
+                                    else -> Modifier.background(Color(0xFFFFF176))
+                                }
 
-                    if (currentSchedule.isEmpty()) {
-                        Row {
-                            Text(
-                                text = "Сегодня выходной!", Modifier
-                                    .fillMaxWidth()
-                                    .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
-                                textAlign = TextAlign.Center
-                            )
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Сейчас",
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(PaddingValues(0.dp, 8.dp, 0.dp, 0.dp)),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 16.sp
+                                    )
+                                    Text(
+                                        text = when (viewModel.isCurrentUserFree.collectAsState().value) {
+                                            BusynessType.FREE -> "Свобода"
+                                            BusynessType.BUSY -> "Работа"
+                                            BusynessType.PREPARATION -> "Подготовка"
+                                            else -> "Завершение"
+                                        },
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(PaddingValues(0.dp, 14.dp, 0.dp, 32.dp)),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 24.sp
+                                    )
+                                }
+
+                            }
+                        } else {
+                            Row(
+                                Modifier.background(Color(0x80646464))
+                            ) {
+                                Column {
+                                    Text(
+                                        text = DateUtils.mappedDayOffset[dayOffset]!!,
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(PaddingValues(0.dp, 32.dp, 0.dp, 32.dp)),
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 24.sp
+                                    )
+                                }
+                            }
                         }
-                    } else {
-                        if(!isTeacherModeEnabled){
-                            for (entry in currentSchedule) {
+
+                        Text(
+                            text = "Расписание " + if (dayOffset == 0) "сегодня" else "",
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(PaddingValues(0.dp, 16.dp, 0.dp, 4.dp)),
+                            textAlign = TextAlign.Center,
+                            fontSize = 18.sp
+                        )
+
+                        var currentSchedule = if (dayOffset == 0) {
+                            viewModel.currentSchedule.collectAsState().value
+                        } else {
+                            viewModel.getScheduleForDay(selectedUser, dayOffset)
+                        }
+
+                        if (currentSchedule.isEmpty()) {
+                            Row {
                                 Text(
-                                    text = "${entry.startTime} - ${entry.endTime}", Modifier
+                                    text = "Выходной!", Modifier
                                         .fillMaxWidth()
                                         .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
                                     textAlign = TextAlign.Center
                                 )
                             }
                         } else {
-                            for (entry in currentSchedule){
-                                TeacherScheduleEntry(entry = entry, 0, onTempNoteEditingStateChange = {viewModel.isUpdateAllowed=!it} )
+                            if (!isTeacherModeEnabled) {
+                                for (entry in currentSchedule) {
+                                    Text(
+                                        text = "${entry.startTime} - ${entry.endTime}", Modifier
+                                            .fillMaxWidth()
+                                            .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
+
+                                var weekOffset : Long = 0
+                                var currentDayNumber = LocalDate.now().dayOfWeek.value
+                                if (currentDayNumber + dayOffset > 7) {
+                                    weekOffset = 1
+                                }
+                                if(currentDayNumber + dayOffset < 0) {
+                                    weekOffset = -1
+                                }
+
+                                for (entry in currentSchedule) {
+                                    TeacherScheduleEntry(
+                                        entry = entry,
+                                        weekOffset,
+                                        onTempNoteEditingStateChange = {
+                                            viewModel.isUpdateAllowed = !it
+                                        })
+                                }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.weight(1f))
 
-                    TextButton(
-                        onClick = {
-                            val intent = Intent(context, FullScheduleActivity::class.java)
-                            intent.putExtra("user_id", selectedUser.id)
-                            context.startActivity(intent)
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = modifier
-                            .align(Alignment.End)
-                            .fillMaxWidth()
-                    ) {
-                        Text(text = "Полное расписание")
-                    }
-
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .height(5.dp)
-                            .fillMaxWidth()
-                            .padding(8.dp, 4.dp, 8.dp, 0.dp)
-                            .background(
-                                Color.White
-                            )
-                            .alpha(0.75f),
-                        content = {}
-                    )
-
-                    Row {
-                        Text(
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
                             modifier = Modifier
-                                .weight(5f, true)
-                                .align(Alignment.CenterVertically)
-                                .padding(12.dp, 0.dp, 0.dp, 0.dp),
-                            text = "Режим учителя",
-                            textAlign = TextAlign.Start,
+                                .height(5.dp)
+                                .fillMaxWidth()
+                                .padding(8.dp, 4.dp, 8.dp, 0.dp)
+                                .background(
+                                    Color.White
+                                )
+                                .alpha(0.75f),
+                            content = {}
                         )
-                        Switch(modifier = Modifier
-                            .scale(0.85f)
-                            .padding(0.dp, 0.dp, 12.dp, 0.dp),
-                            checked = isTeacherModeEnabled,
-                            onCheckedChange = {
-                                isTeacherModeEnabled = !isTeacherModeEnabled
-                                writeTeacherModeInSharedPrefs(activity, isTeacherModeEnabled)
-                            })
+
+                        Row {
+                            Text(
+                                modifier = Modifier
+                                    .weight(5f, true)
+                                    .align(Alignment.CenterVertically)
+                                    .padding(12.dp, 0.dp, 0.dp, 0.dp),
+                                text = "Режим учителя",
+                                textAlign = TextAlign.Start,
+                            )
+                            Switch(modifier = Modifier
+                                .scale(0.85f)
+                                .padding(0.dp, 0.dp, 12.dp, 0.dp),
+                                checked = isTeacherModeEnabled,
+                                onCheckedChange = {
+                                    isTeacherModeEnabled = !isTeacherModeEnabled
+                                    writeTeacherModeToSharedPrefs(activity, isTeacherModeEnabled)
+                                })
+                        }
+
+
                     }
-
-
                 }
+
             }
+
+
         } else {
             Box(
                 modifier = Modifier
@@ -364,7 +412,7 @@ fun Greeting(
             }
         }
 
-        if(isTeacherModeEnabled) {
+        if (isTeacherModeEnabled) {
             Button(
                 onClick = {
                     val intent = Intent(context, TimeEditActivity::class.java)
@@ -373,27 +421,52 @@ fun Greeting(
                 },
                 shape = RoundedCornerShape(12.dp),
                 modifier = modifier
+                    .weight(1f, false)
                     .align(Alignment.End)
                     .fillMaxWidth()
                     .alpha(if (selectedUser.id != -1) 1f else 0f)
                     .padding(4.dp)
-                    .height(40.dp)
             ) {
                 Text(text = "Изменить расписание")
             }
+        }
+
+        TextButton(
+            onClick = {
+                val intent = Intent(context, FullScheduleActivity::class.java)
+                intent.putExtra("user_id", selectedUser.id)
+                context.startActivity(intent)
+            },
+            shape = RoundedCornerShape(12.dp),
+            modifier = modifier
+                .weight(1f, false)
+                .align(Alignment.End)
+                .padding(4.dp, 0.dp)
+                .fillMaxWidth()
+        ) {
+            Text(text = "Полное расписание")
         }
     }
 }
 
 
-
-fun writeTeacherModeInSharedPrefs(activity: Activity, mode: Boolean){
+fun writeTeacherModeToSharedPrefs(activity: Activity, mode: Boolean) {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
     sharedPrefs.edit().putBoolean("TeacherMode", mode).commit()
 }
 
-fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean{
+fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
     return sharedPrefs.getBoolean("TeacherMode", false)
+}
+
+fun writeLastSelectedUserToSharedPrefs(activity: Activity, userId: Int){
+    val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
+    sharedPrefs.edit().putInt("LastUserId", userId).commit()
+}
+
+fun getLastSelectedUserFromSharedPrefs(activity: Activity): Int{
+    val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
+    return sharedPrefs.getInt("LastUserId", 1)
 }
 

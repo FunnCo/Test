@@ -2,6 +2,7 @@ package com.funnco.scheduler.presentation.fullSchedule
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -43,9 +45,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.funnco.scheduler.data.model.ScheduleModel
 import com.funnco.scheduler.domain.DateUtils
+import com.funnco.scheduler.domain.model.FullScheduleContainer
 import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.composables.WeekSwitch
+import com.funnco.scheduler.presentation.main.MainActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class FullScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +68,11 @@ class FullScheduleActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onBackPressed() {
+        startActivity(Intent(this, MainActivity::class.java))
+        this.finish()
     }
 }
 
@@ -93,32 +105,64 @@ fun Greeting3(userId: Int, activity: Activity) {
             fontSize = 18.sp
         )
 
+        var isRecomposing by remember {
+            mutableStateOf(false)
+        }
+
         var weekOffset by remember {
             mutableIntStateOf(0)
         }
 
-        WeekSwitch(startingOffset = weekOffset,onWeekChange = {newOffset -> weekOffset = newOffset })
+        WeekSwitch(
+            startingOffset = weekOffset,
+            onWeekChange = { newOffset ->
+                weekOffset = newOffset
+            }
+        )
+
         Log.i("TAG", "current weekoffset is ${weekOffset}")
-        LazyColumn(
-            content = {
-                items(7) { index ->
-                    TimeScheduleCard(
-                        schedule = viewModel.userSchedules.collectAsState().value.filter { it.dayNumber == index + 1 },
-                        index + 1,
-                        activity,
-                        weekOffset
-                    )
 
-                }
+        val listOfSchedules = mutableListOf<FullScheduleContainer>()
+        for (i in 0..6) {
+            listOfSchedules.add(
+                FullScheduleContainer(
+                    weekOffset * 10 + i + 1,
+                    viewModel.userSchedules.collectAsState().value.filter { it.dayNumber == i + 1 })
+            )
+        }
 
-            })
+
+        LazyColumn {
+
+            items(listOfSchedules, key = { it.id }) { entry ->
+                TimeScheduleCard(
+                    schedule = entry.scheduleEntries,
+                    dayNumber = entry.id % 10,
+                    activity,
+                    weekOffset
+                )
+            }
+
+
+        }
 
     }
+
+
+//                {
+//                    )
+//
+//                }
 
 }
 
 @Composable
-fun TimeScheduleCard(schedule: List<ScheduleModel>, dayNumber: Int, activity: Activity, weekOffset: Int) {
+fun TimeScheduleCard(
+    schedule: List<ScheduleModel>,
+    dayNumber: Int,
+    activity: Activity,
+    weekOffset: Int
+) {
     var viewModel: FullScheduleActivityViewModel = viewModel()
 
     Card(
@@ -170,7 +214,6 @@ fun TimeScheduleCard(schedule: List<ScheduleModel>, dayNumber: Int, activity: Ac
 
     }
 }
-
 
 
 fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean {

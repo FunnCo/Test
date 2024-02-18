@@ -14,4 +14,11 @@ object DateUtils {
         3 to "Через 3 недели",
         4 to "Через 4 недели"
     )
+    val mappedDayOffset = mapOf<Int, String>(
+        -2 to "Позавчера",
+        -1 to "Вчера",
+        0 to "Сегодня",
+        1 to "Завтра",
+        2 to "Послезавтра"
+    )
 }
