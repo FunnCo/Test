@@ -97,7 +97,7 @@ object UserDataInteractor {
                                     ||
                                     it.note
                                         .lowercase()
-                                        .contains("Перенос на")
+                                        .contains("перенос на")
                                     )
                                     && it.dateOfNote!!.isEqual(
                                 LocalDate.now().plusDays(dayOffset.toLong())
