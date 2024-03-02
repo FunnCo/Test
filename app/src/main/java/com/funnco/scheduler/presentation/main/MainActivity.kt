@@ -164,7 +164,7 @@ fun Greeting(
     if (firstLaunch && allUsers.isNotEmpty()) {
         firstLaunch = false
         val desiredIdToOpen = getLastSelectedUserFromSharedPrefs(activity)
-        selectedUser = allUsers.find { it.id == desiredIdToOpen} ?: allUsers[0]
+        selectedUser = allUsers.find { it.id == desiredIdToOpen } ?: allUsers[0]
     }
 
     var isFree = viewModel.isCurrentUserFree.collectAsState().value
@@ -346,12 +346,20 @@ fun Greeting(
                                 }
 
                                 for (entry in currentSchedule) {
-                                    TeacherScheduleEntry(
-                                        entry = entry,
-                                        weekOffset,
-                                        onTempNoteEditingStateChange = {
-                                            viewModel.isUpdateAllowed = !it
-                                        })
+                                    if (!entry.isRescheduledEntry || (
+                                                entry.rescheduledTo!!.isEqual(
+                                                    LocalDate
+                                                        .now()
+                                                        .plusWeeks(weekOffset)
+                                                )
+                                                )
+                                    )
+                                        TeacherScheduleEntry(
+                                            entry = entry,
+                                            weekOffset,
+                                            onTempNoteEditingStateChange = {
+                                                viewModel.isUpdateAllowed = !it
+                                            })
                                 }
                             }
                         }
@@ -462,12 +470,12 @@ fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean {
     return sharedPrefs.getBoolean("TeacherMode", false)
 }
 
-fun writeLastSelectedUserToSharedPrefs(activity: Activity, userId: Int){
+fun writeLastSelectedUserToSharedPrefs(activity: Activity, userId: Int) {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
     sharedPrefs.edit().putInt("LastUserId", userId).commit()
 }
 
-fun getLastSelectedUserFromSharedPrefs(activity: Activity): Int{
+fun getLastSelectedUserFromSharedPrefs(activity: Activity): Int {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
     return sharedPrefs.getInt("LastUserId", 1)
 }

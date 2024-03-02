@@ -53,6 +53,7 @@ import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class FullScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -127,6 +128,7 @@ fun Greeting3(userId: Int, activity: Activity) {
             listOfSchedules.add(
                 FullScheduleContainer(
                     weekOffset * 10 + i + 1,
+                    i + 1,
                     viewModel.userSchedules.collectAsState().value.filter { it.dayNumber == i + 1 })
             )
         }
@@ -136,8 +138,18 @@ fun Greeting3(userId: Int, activity: Activity) {
 
             items(listOfSchedules, key = { it.id }) { entry ->
                 TimeScheduleCard(
-                    schedule = entry.scheduleEntries,
-                    dayNumber = entry.id % 10,
+                    schedule = entry.scheduleEntries.filter {
+                        !it.isRescheduledEntry || (
+                                it.rescheduledTo!!.isEqual(
+                                    LocalDate
+                                        .now()
+                                        .plusWeeks(weekOffset.toLong())
+                                        .minusDays(LocalDate.now().dayOfWeek.value.toLong())
+                                        .plusDays(it.dayNumber.toLong())
+                                )
+                                )
+                    },
+                    dayNumber = entry.dayNumber,
                     activity,
                     weekOffset
                 )
@@ -148,11 +160,6 @@ fun Greeting3(userId: Int, activity: Activity) {
 
     }
 
-
-//                {
-//                    )
-//
-//                }
 
 }
 
@@ -175,6 +182,9 @@ fun TimeScheduleCard(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
+
+            Log.d("TestBug", "day number is ${dayNumber}")
+
             Text(
                 text = "${DateUtils.mappedDays[dayNumber]}",
                 Modifier

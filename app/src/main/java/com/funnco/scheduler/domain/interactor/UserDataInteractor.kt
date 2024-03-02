@@ -13,14 +13,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.stream.Collectors
 
 object UserDataInteractor {
 
     const val REQUEST_DELAY = 2000L
+
+    private var currentExtraScheduleEntryId = -1
 
     private var mapOfUsersSchedules: Map<Int, List<ScheduleModel>> = emptyMap()
     var listOfUsers: List<UserModel> = emptyList()
@@ -47,7 +51,8 @@ object UserDataInteractor {
         if (userModel.id == -1 || mapOfUsersSchedules[userModel.id]?.isEmpty() != false) {
             return emptyList()
         }
-        return mapOfUsersSchedules[userModel.id]!!.sortedBy { it.startTime }
+        return mapOfUsersSchedules[userModel.id]!!
+            .sortedBy { it.startTime }
     }
 
     fun postAndUpdateSchedules(updatedSchedules: List<ScheduleModel>, callback: (Boolean) -> Unit) {
@@ -79,20 +84,24 @@ object UserDataInteractor {
                 selectedDayNumber += dayOffset
             }
         }
-
-        Log.d("TEST", "$selectedDayNumber")
         return try {
             mapOfUsersSchedules[userModel.id]!!
-                .filter { it.dayNumber == selectedDayNumber }
+                .filter { it.dayNumber == selectedDayNumber } // Выборка только соответствующего дня
                 .sortedBy { it.startTime }
-                .filter { schedule ->
+                .filter { schedule -> // Выборка тех, которые не отменены и не перенесены
                     schedule.tempNotes?.stream()
                         ?.filter {
-                            it.note
-                                .toLowerCase(Locale.ROOT)
+                            (it.note
+                                .lowercase()
                                 .contains("отмен")
-                                    && it.dateOfNote!!.isEqual(LocalDate.now().plusDays(dayOffset.toLong()))
-
+                                    ||
+                                    it.note
+                                        .lowercase()
+                                        .contains("Перенос на")
+                                    )
+                                    && it.dateOfNote!!.isEqual(
+                                LocalDate.now().plusDays(dayOffset.toLong())
+                            )
                         }
                         ?.collect(Collectors.toList())?.isEmpty() ?: true
                 }
@@ -168,8 +177,24 @@ object UserDataInteractor {
                                 requiredMap[entry.userId] = mutableListOf()
                             }
                             (requiredMap[entry.userId] as MutableList).add(entry)
+
+                            val rescheduleNotes = entry.tempNotes?.stream()
+                                ?.filter { noteModel -> noteModel.note.contains("Перенос на") }
+                                ?.collect(Collectors.toList())
+                            if (!rescheduleNotes.isNullOrEmpty()) {
+                                for (note in rescheduleNotes) {
+                                    (requiredMap[entry.userId] as MutableList).add(
+                                        parseEntryWithReschedule(
+                                            it.find { scheduleModel -> scheduleModel.id == note.scheduleId }!!,
+                                            note
+                                        )
+                                    )
+                                }
+                            }
+
                         }
                         mapOfUsersSchedules = requiredMap
+
                         callback(requiredMap)
                         previousSyncPassed = true
                     }
@@ -177,6 +202,46 @@ object UserDataInteractor {
                 }
             }
         }
+    }
+
+    private fun parseEntryWithReschedule(
+        scheduleEntry: ScheduleModel,
+        tempNote: NoteModel
+    ): ScheduleModel {
+        val dayOfNewEntry = tempNote.note.substring(15, 17).toInt()
+        val monthOfNewEntry = tempNote.note.substring(18, 20).toInt()
+
+        val hourOfNewEntry = tempNote.note.substring(21, 23).toInt()
+        val minuteOfNewEntry = tempNote.note.substring(25).toInt()
+
+        val yearOfNewEntry =
+            if (LocalDate.now().month.value > monthOfNewEntry) LocalDate.now().year + 1 else LocalDate.now().year
+
+        val timeDiff = Duration.between(scheduleEntry.startTime, scheduleEntry.endTime).toMinutes()
+
+        val resultScheduleModel = ScheduleModel(
+            currentExtraScheduleEntryId,
+            scheduleEntry.userId,
+            LocalTime.of(hourOfNewEntry, minuteOfNewEntry),
+            LocalTime.of(hourOfNewEntry, minuteOfNewEntry).plusMinutes(timeDiff),
+            LocalDate.of(yearOfNewEntry, monthOfNewEntry, dayOfNewEntry).dayOfWeek.value,
+            scheduleEntry.note,
+            emptyList(),
+            true,
+            rescheduledFrom = tempNote.dateOfNote,
+            rescheduledTo = LocalDate.of(yearOfNewEntry, monthOfNewEntry, dayOfNewEntry)
+        )
+
+        val newTempNote = NoteModel(
+            null,
+            "Перенесено с ${tempNote.dateOfNote!!.format(DateTimeFormatter.ofPattern("E, dd.MM"))}",
+            LocalDate.of(yearOfNewEntry, monthOfNewEntry, dayOfNewEntry),
+            currentExtraScheduleEntryId,
+            false
+        )
+        resultScheduleModel.tempNotes = listOf(newTempNote)
+        currentExtraScheduleEntryId--
+        return resultScheduleModel
     }
 
     fun subscribeToUserUpdate(callback: (List<UserModel>) -> Unit) {

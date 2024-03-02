@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,12 +24,14 @@ import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -48,6 +51,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.funnco.scheduler.data.model.ScheduleModel
@@ -61,6 +65,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,18 +108,32 @@ fun TeacherScheduleEntry(
                     MutableInteractionSource()
                 }
 
+                var isMenuExpanded by remember {
+                    mutableStateOf(false)
+                }
+
                 CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(4.dp, 4.dp, 8.dp, 4.dp)
-                            .clickable(
-                                enabled = true,
-                                interactionSource = interactionSource,
-                                indication = rememberRipple(bounded = false, radius = 16.dp)
-                            ) {
+                    Box {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(4.dp, 4.dp, 8.dp, 4.dp)
+                                .clickable(
+                                    enabled = true,
+                                    interactionSource = interactionSource,
+                                    indication = rememberRipple(bounded = false, radius = 16.dp)
+                                ) {
+                                    isMenuExpanded = true
+                                }
+                        )
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = { isMenuExpanded = false }) {
+                            TextButton(modifier = Modifier.padding(8.dp, 4.dp), onClick = {
+                                isMenuExpanded = false
+
                                 val tempList =
                                     listOfTempNotes.value?.toMutableList() ?: mutableListOf()
                                 tempList.add(
@@ -135,13 +154,113 @@ fun TeacherScheduleEntry(
                                 GlobalScope.launch {
                                     onTempNoteEditingStateChange(true)
                                     delay(5000L)
-                                    if(!isNoteBeingEdited) {
+                                    if (!isNoteBeingEdited) {
                                         onTempNoteEditingStateChange(false)
                                     }
                                 }
-                            }
-                    )
 
+                            }) {
+                                Text("Новая заметка")
+                            }
+
+                            TextButton(modifier = Modifier.padding(8.dp, 4.dp), onClick = {
+                                isMenuExpanded = false
+
+                                val tempList =
+                                    listOfTempNotes.value?.toMutableList() ?: mutableListOf()
+                                tempList.add(
+                                    NoteModel(
+                                        null,
+                                        "Отмена",
+                                        LocalDate
+                                            .now()
+                                            .minusDays(LocalDate.now().dayOfWeek.value.toLong())
+                                            .plusDays(entry.dayNumber.toLong())
+                                            .plusWeeks(offsetWeeks),
+                                        entry.id!!,
+                                        false
+                                    )
+                                )
+
+                                UserDataInteractor.insertOrChangeTempNote(tempList.last()) { isSuccess, newNote ->
+                                    if (isSuccess) {
+                                        tempList.last().id = newNote.id
+                                    }
+                                }
+
+                                listOfTempNotes.value = tempList
+                                entry.tempNotes = listOfTempNotes.value
+                                GlobalScope.launch {
+                                    onTempNoteEditingStateChange(true)
+                                    delay(5000L)
+                                    if (!isNoteBeingEdited) {
+                                        onTempNoteEditingStateChange(false)
+                                    }
+                                }
+
+                            }) {
+                                Text("Отмена")
+                            }
+
+                            var isRescheduleDialogNeeded by remember {
+                                mutableStateOf(false)
+                            }
+
+                            TextButton(
+                                modifier = Modifier.padding(8.dp, 4.dp),
+                                onClick = {
+                                    isRescheduleDialogNeeded = true
+                                }) {
+                                Text("Перенос")
+                            }
+
+                            if (isRescheduleDialogNeeded) {
+                                RescheduleDialog(
+                                    entry,
+                                    onDismissRequest = {
+                                        isRescheduleDialogNeeded = false
+                                        isMenuExpanded = false
+                                    },
+                                    onDateSelected = { date, time ->
+                                        isRescheduleDialogNeeded = false
+                                        isMenuExpanded = false
+
+                                        val tempList =
+                                            listOfTempNotes.value?.toMutableList() ?: mutableListOf()
+                                        tempList.add(
+                                            NoteModel(
+                                                null,
+                                                "Перенос на ${date.format(DateTimeFormatter.ofPattern("E, dd.MM"))} $time",
+                                                LocalDate
+                                                    .now()
+                                                    .minusDays(LocalDate.now().dayOfWeek.value.toLong())
+                                                    .plusDays(entry.dayNumber.toLong())
+                                                    .plusWeeks(offsetWeeks),
+                                                entry.id!!,
+                                                false
+                                            )
+                                        )
+
+                                        UserDataInteractor.insertOrChangeTempNote(tempList.last()) { isSuccess, newNote ->
+                                            if (isSuccess) {
+                                                tempList.last().id = newNote.id
+                                            }
+                                        }
+
+                                        listOfTempNotes.value = tempList
+                                        entry.tempNotes = listOfTempNotes.value
+                                        GlobalScope.launch {
+                                            onTempNoteEditingStateChange(true)
+                                            delay(5000L)
+                                            if (!isNoteBeingEdited) {
+                                                onTempNoteEditingStateChange(false)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -205,10 +324,6 @@ fun TeacherScheduleEntry(
                                     note.flag = isFlagged
                                     handleUserInput(
                                         {
-                                            Log.e(
-                                                "StrangeError",
-                                                "currentScheduleId is: ${note.scheduleId}"
-                                            )
                                             UserDataInteractor.insertOrChangeTempNote(note) { isSuccess, newNote ->
                                                 if (isSuccess) {
                                                     note.id = newNote.id
@@ -248,6 +363,5 @@ fun handleUserInput(codeToSchedule: () -> Unit, onStateChange: (Boolean) -> Unit
                 break
             }
         }
-        Log.i("OOO", "scheduled job of updating note is finished")
     }
 }

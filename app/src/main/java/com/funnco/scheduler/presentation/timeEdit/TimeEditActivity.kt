@@ -217,9 +217,10 @@ fun Greeting2(userId: Int, activity: Activity) {
                         )
 
                     }
-
                     for (entry in currentSchedule) {
-                        TimeScheduleCard(schedule = entry)
+                        if(!entry.isRescheduledEntry) {
+                            TimeScheduleCard(schedule = entry)
+                        }
                     }
                 }
                 OutlinedCard(
