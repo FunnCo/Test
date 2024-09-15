@@ -1,50 +1,64 @@
 package com.funnco.scheduler.presentation.timeEdit
 
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.funnco.scheduler.data.model.ScheduleModel
-import com.funnco.scheduler.data.model.UserModel
-import com.funnco.scheduler.domain.interactor.UserDataInteractor
+import androidx.lifecycle.viewModelScope
+import com.funnco.scheduler.data.repository.model.EventModel
+import com.funnco.scheduler.data.repository.model.TemplateEventModel
+import com.funnco.scheduler.data.repository.model.UserModel
+import com.funnco.scheduler.domain.interactor.DataInteractor
+import com.funnco.scheduler.domain.model.WeekDay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.util.concurrent.TimeUnit
 
 class TimeEditActivityViewModel : ViewModel() {
-    private val userDataInteractor = UserDataInteractor
-    var userSchedules = MutableStateFlow(emptyList<ScheduleModel>())
-    var newEntries = mutableListOf<ScheduleModel>()
+    private val dataInteractor = DataInteractor
 
-    var deletedEntries = mutableListOf<ScheduleModel>()
-    fun postNewSchedules(callback: (isSuccessful: Boolean) -> Unit){
-        userDataInteractor.postAndUpdateSchedules(newEntries) {isSuccess ->
-            callback(isSuccess)
-            if(isSuccess){
-                newEntries = mutableListOf<ScheduleModel>()
+    var jobsList: MutableMap<Int, Job> = mutableMapOf()
+    var daysTemplates: MutableMap<Int, MutableStateFlow<List<TemplateEventModel>>> = mutableMapOf()
+
+    init {
+        for (dayOffset in 1..7) {
+            jobsList[dayOffset] = viewModelScope.launch(Dispatchers.IO) {
+                while (isActive) {
+                    updateSchedule(dayOffset)
+                    TimeUnit.SECONDS.sleep(1)
+                }
             }
-
-        }
-
-        if(deletedEntries.isNotEmpty()){
-            userDataInteractor.removeEntries(deletedEntries)
         }
     }
 
-    fun getUserSchedules(userModel: UserModel) {
-        userSchedules.value = userDataInteractor.getAllDaysSchedules(userModel)
-    }
-
-    fun getCurrentUser(userId: Int): UserModel {
-        return userDataInteractor.listOfUsers.find { it.id == userId }!!
-    }
-
-    fun deleteSchedule(scheduleId: Int){
-        var wasScheduleNew = newEntries.remove(newEntries.find { it.id == scheduleId })
-        if(!wasScheduleNew){
-            var entryToDelete = userSchedules.value.find { it.id == scheduleId }!!
-
-            deletedEntries.add(entryToDelete)
-            var newUserSchedules = userSchedules.value.toMutableList()
-            newUserSchedules.remove(entryToDelete)
-            userSchedules.value = newUserSchedules
+    private fun updateSchedule(dayOffset: Int) {
+        if (!daysTemplates.containsKey(dayOffset)) {
+            daysTemplates[dayOffset] = MutableStateFlow(emptyList())
+        }
+        daysTemplates[dayOffset]?.update {
+            dataInteractor.templates.filter { entry ->
+                WeekDay.valueOf(
+                    entry.day!!
+                ).value == dayOffset
+            }
         }
     }
 
+    fun getCurrentUser(userId: String): UserModel {
+        return dataInteractor.allUsers.find { it.id == userId }!!
+    }
+
+    fun createOrUpdateTemplate(template: TemplateEventModel, callback: () -> Unit) {
+        dataInteractor.pushTemplate(template) {
+            callback()
+        }
+    }
+
+    fun deleteTemplate(id: String, callback: () -> Unit) {
+        dataInteractor.deleteTemplate(id){
+            callback()
+        }
+    }
 }

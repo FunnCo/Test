@@ -56,7 +56,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.funnco.scheduler.data.model.UserModel
+import com.funnco.scheduler.data.repository.model.UserModel
 import com.funnco.scheduler.domain.DateUtils
 import com.funnco.scheduler.domain.model.BusynessType
 import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
@@ -64,16 +64,12 @@ import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-//        if(!isRoleHeldByApp(RoleManager.ROLE_CALL_REDIRECTION)){
-//            acquireRole(RoleManager.ROLE_CALL_REDIRECTION)
-//        }
-//        requestOverlayPermission()
         setContent {
             SchedulerTheme {
                 // A surface container using the 'background' color from the theme
@@ -86,51 +82,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    private fun requestOverlayPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
-            return
-        }
-        val myIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-        myIntent.data = Uri.parse("package:$packageName")
-        startActivityForResult(myIntent, 101)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == 101) {
-            if (!Settings.canDrawOverlays(this)) {
-                requestOverlayPermission()
-            }
-        }
-
-        super.onActivityResult(requestCode, resultCode, data)
-    }
-
-    private fun isRoleHeldByApp(roleName: String): Boolean {
-        val roleManager: RoleManager? = getSystemService(RoleManager::class.java)
-        return roleManager!!.isRoleHeld(roleName)
-    }
-
-    private fun isRoleAvailable(roleName: String): Boolean {
-        val roleManager: RoleManager? = getSystemService(RoleManager::class.java)
-        return roleManager!!.isRoleAvailable(roleName)
-    }
-
-    private fun acquireRole(roleName: String) {
-        val roleManager: RoleManager?
-        if (isRoleAvailable(roleName)) {
-            roleManager = getSystemService(RoleManager::class.java)
-            val intent = roleManager.createRequestRoleIntent(roleName)
-            startActivityForResult(intent, 1)
-        } else {
-            Toast.makeText(
-                this,
-                "Redirection call with role in not available",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
 }
 
 
@@ -150,21 +101,22 @@ fun Greeting(
     val allUsers = viewModel.listOfUsers.collectAsState(emptyList()).value
 
     var selectedUser by remember {
-        mutableStateOf(UserModel(-1, ""))
+        mutableStateOf(UserModel("", ""))
     }
 
-    var isTeacherModeEnabled by remember {
-        mutableStateOf(getTeacherModeFromSharedPrefs(activity))
+    var isDetailedModeEnabled by remember {
+        mutableStateOf(getDetailedModeFromSharedPrefs(activity))
     }
 
-    if (selectedUser.id != -1) {
-        viewModel.getUserBusyness(selectedUser)
+    if (selectedUser.id != "") {
+        viewModel.getUserBusyness()
     }
 
     if (firstLaunch && allUsers.isNotEmpty()) {
         firstLaunch = false
         val desiredIdToOpen = getLastSelectedUserFromSharedPrefs(activity)
         selectedUser = allUsers.find { it.id == desiredIdToOpen } ?: allUsers[0]
+        viewModel.updateCurrentUser(selectedUser)
     }
 
     var isFree = viewModel.isCurrentUserFree.collectAsState().value
@@ -186,7 +138,7 @@ fun Greeting(
                 .padding(4.dp)
         ) {
             TextField(
-                value = selectedUser.nickName,
+                value = selectedUser.name,
                 onValueChange = {
                     isExpanded = !isExpanded
                 },
@@ -208,10 +160,11 @@ fun Greeting(
             }) {
                 allUsers.forEach {
                     DropdownMenuItem(
-                        text = { Text(text = it.nickName) },
+                        text = { Text(text = it.name) },
                         onClick = {
                             selectedUser = it
                             isExpanded = false
+                            viewModel.updateCurrentUser(it)
                             writeLastSelectedUserToSharedPrefs(activity, it.id)
                         }
                     )
@@ -223,7 +176,7 @@ fun Greeting(
             5
         }
 
-        if (selectedUser.id != -1) {
+        if (selectedUser.id != "") {
             HorizontalPager(
                 state = pagerState,
 
@@ -309,11 +262,8 @@ fun Greeting(
                             fontSize = 18.sp
                         )
 
-                        var currentSchedule = if (dayOffset == 0) {
-                            viewModel.currentSchedule.collectAsState().value
-                        } else {
-                            viewModel.getScheduleForDay(selectedUser, dayOffset)
-                        }
+                        viewModel.subscribeForSchedule(dayOffset)
+                        val currentSchedule = viewModel.daysSchedule[dayOffset]?.collectAsState()?.value ?: emptyList()
 
                         if (currentSchedule.isEmpty()) {
                             Row {
@@ -325,41 +275,21 @@ fun Greeting(
                                 )
                             }
                         } else {
-                            if (!isTeacherModeEnabled) {
-                                for (entry in currentSchedule) {
+                            for (entry in currentSchedule) {
+                                if (!isDetailedModeEnabled) {
+                                    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
                                     Text(
-                                        text = "${entry.startTime} - ${entry.endTime}", Modifier
+                                        text = "${entry.startTime?.plusHours(3)?.format(timeFormatter)} - ${entry.endTime?.plusHours(3)?.format(timeFormatter)}", Modifier
                                             .fillMaxWidth()
                                             .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
                                         textAlign = TextAlign.Center
                                     )
-                                }
-                            } else {
-
-                                var weekOffset: Long = 0
-                                var currentDayNumber = LocalDate.now().dayOfWeek.value
-                                if (currentDayNumber + dayOffset > 7) {
-                                    weekOffset = 1
-                                }
-                                if (currentDayNumber + dayOffset < 0) {
-                                    weekOffset = -1
-                                }
-
-                                for (entry in currentSchedule) {
-                                    if (!entry.isRescheduledEntry || (
-                                                entry.rescheduledTo!!.isEqual(
-                                                    LocalDate
-                                                        .now()
-                                                        .plusWeeks(weekOffset)
-                                                )
-                                                )
-                                    )
-                                        TeacherScheduleEntry(
-                                            entry = entry,
-                                            weekOffset,
-                                            onTempNoteEditingStateChange = {
-                                                viewModel.isUpdateAllowed = !it
-                                            })
+                                } else {
+                                    TeacherScheduleEntry(
+                                        entry = entry,
+                                        onTempNoteEditingStateChange = {
+                                            viewModel.isUpdateAllowed = !it
+                                        })
                                 }
                             }
                         }
@@ -385,16 +315,16 @@ fun Greeting(
                                     .weight(5f, true)
                                     .align(Alignment.CenterVertically)
                                     .padding(12.dp, 0.dp, 0.dp, 0.dp),
-                                text = "Режим учителя",
+                                text = "Подробный режим",
                                 textAlign = TextAlign.Start,
                             )
                             Switch(modifier = Modifier
                                 .scale(0.85f)
                                 .padding(0.dp, 0.dp, 12.dp, 0.dp),
-                                checked = isTeacherModeEnabled,
+                                checked = isDetailedModeEnabled,
                                 onCheckedChange = {
-                                    isTeacherModeEnabled = !isTeacherModeEnabled
-                                    writeTeacherModeToSharedPrefs(activity, isTeacherModeEnabled)
+                                    isDetailedModeEnabled = !isDetailedModeEnabled
+                                    writeDetailedModeToSharedPrefs(activity, isDetailedModeEnabled)
                                 })
                         }
 
@@ -420,31 +350,33 @@ fun Greeting(
             }
         }
 
-        if (isTeacherModeEnabled) {
+        if (isDetailedModeEnabled) {
             Button(
                 onClick = {
                     val intent = Intent(context, TimeEditActivity::class.java)
                     intent.putExtra("user_id", selectedUser.id)
                     context.startActivity(intent)
+                    activity.finish()
                 },
                 shape = RoundedCornerShape(12.dp),
                 modifier = modifier
                     .weight(1f, false)
                     .align(Alignment.End)
                     .fillMaxWidth()
-                    .alpha(if (selectedUser.id != -1) 1f else 0f)
+                    .alpha(if (selectedUser.id != "") 1f else 0f)
                     .padding(4.dp)
             ) {
                 Text(text = "Изменить расписание")
             }
         }
 
-        if (selectedUser.id != -1) {
+        if (selectedUser.id != "") {
             TextButton(
                 onClick = {
                     val intent = Intent(context, FullScheduleActivity::class.java)
                     intent.putExtra("user_id", selectedUser.id)
                     context.startActivity(intent)
+                    activity.finish()
                 },
                 shape = RoundedCornerShape(12.dp),
                 modifier = modifier
@@ -460,23 +392,23 @@ fun Greeting(
 }
 
 
-fun writeTeacherModeToSharedPrefs(activity: Activity, mode: Boolean) {
+fun writeDetailedModeToSharedPrefs(activity: Activity, mode: Boolean) {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
-    sharedPrefs.edit().putBoolean("TeacherMode", mode).commit()
+    sharedPrefs.edit().putBoolean("DetailedMode", mode).commit()
 }
 
-fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean {
+fun getDetailedModeFromSharedPrefs(activity: Activity): Boolean {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
-    return sharedPrefs.getBoolean("TeacherMode", false)
+    return sharedPrefs.getBoolean("DetailedMode", false)
 }
 
-fun writeLastSelectedUserToSharedPrefs(activity: Activity, userId: Int) {
+fun writeLastSelectedUserToSharedPrefs(activity: Activity, userId: String) {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
-    sharedPrefs.edit().putInt("LastUserId", userId).commit()
+    sharedPrefs.edit().putString("LastUserId", userId).commit()
 }
 
-fun getLastSelectedUserFromSharedPrefs(activity: Activity): Int {
+fun getLastSelectedUserFromSharedPrefs(activity: Activity): String {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
-    return sharedPrefs.getInt("LastUserId", 1)
+    return sharedPrefs.getString("LastUserId", "")!!
 }
 

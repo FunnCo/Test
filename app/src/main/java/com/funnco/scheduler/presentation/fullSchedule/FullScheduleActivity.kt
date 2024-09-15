@@ -1,5 +1,6 @@
 package com.funnco.scheduler.presentation.fullSchedule
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -16,44 +17,30 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalMinimumInteractiveComponentEnforcement
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.funnco.scheduler.data.model.ScheduleModel
+import com.funnco.scheduler.data.repository.model.EventModel
 import com.funnco.scheduler.domain.DateUtils
-import com.funnco.scheduler.domain.model.FullScheduleContainer
 import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.composables.WeekSwitch
 import com.funnco.scheduler.presentation.main.MainActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class FullScheduleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,12 +52,13 @@ class FullScheduleActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting3(intent.getIntExtra("user_id", -1), this)
+                    Greeting3(intent.getStringExtra("user_id") ?: "", this)
                 }
             }
         }
     }
 
+    @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         startActivity(Intent(this, MainActivity::class.java))
         this.finish()
@@ -78,17 +66,9 @@ class FullScheduleActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting3(userId: Int, activity: Activity) {
+fun Greeting3(userId: String, activity: Activity) {
     var viewModel: FullScheduleActivityViewModel = viewModel()
     val selectedUser = viewModel.getCurrentUser(userId)
-
-    var isFirstLaunch by remember {
-        mutableStateOf(true)
-    }
-    if (isFirstLaunch) {
-        viewModel.getUserSchedules(selectedUser)
-        isFirstLaunch = false
-    }
 
     Column(
         modifier = Modifier
@@ -98,17 +78,13 @@ fun Greeting3(userId: Int, activity: Activity) {
     ) {
 
         Text(
-            text = "Полное расписание\nпользователя ${selectedUser.nickName}",
+            text = "Полное расписание\nпользователя ${selectedUser.name}",
             Modifier
                 .fillMaxWidth()
                 .padding(PaddingValues(0.dp, 8.dp, 0.dp, 4.dp)),
             textAlign = TextAlign.Center,
             fontSize = 18.sp
         )
-
-        var isRecomposing by remember {
-            mutableStateOf(false)
-        }
 
         var weekOffset by remember {
             mutableIntStateOf(0)
@@ -123,54 +99,29 @@ fun Greeting3(userId: Int, activity: Activity) {
 
         Log.i("TAG", "current weekoffset is ${weekOffset}")
 
-        val listOfSchedules = mutableListOf<FullScheduleContainer>()
-        for (i in 0..6) {
-            listOfSchedules.add(
-                FullScheduleContainer(
-                    weekOffset * 10 + i + 1,
-                    i + 1,
-                    viewModel.userSchedules.collectAsState().value.filter { it.dayNumber == i + 1 })
-            )
-        }
-
+        val weeksSchedule = viewModel.weeksSchedule[weekOffset]?.collectAsState()?.value ?: emptyList()
+        val daysSchedules = viewModel.parseWeekScheduleToMap(weeksSchedule)
 
         LazyColumn {
-
-            items(listOfSchedules, key = { it.id }) { entry ->
-                TimeScheduleCard(
-                    schedule = entry.scheduleEntries.filter {
-                        !it.isRescheduledEntry || (
-                                it.rescheduledTo!!.isEqual(
-                                    LocalDate
-                                        .now()
-                                        .plusWeeks(weekOffset.toLong())
-                                        .minusDays(LocalDate.now().dayOfWeek.value.toLong())
-                                        .plusDays(it.dayNumber.toLong())
-                                )
-                                )
-                    },
-                    dayNumber = entry.dayNumber,
-                    activity,
-                    weekOffset
-                )
+            for (i in 1 .. 7){
+                item {
+                    TimeScheduleCard(
+                        schedule = daysSchedules[i] ?: emptyList(),
+                        dayNumber = i,
+                        activity = activity
+                    )
+                }
             }
-
-
         }
-
     }
-
-
 }
 
 @Composable
 fun TimeScheduleCard(
-    schedule: List<ScheduleModel>,
+    schedule: List<EventModel>,
     dayNumber: Int,
     activity: Activity,
-    weekOffset: Int
 ) {
-    var viewModel: FullScheduleActivityViewModel = viewModel()
 
     Card(
         modifier = Modifier
@@ -203,14 +154,15 @@ fun TimeScheduleCard(
                     )
                 }
             } else {
-                if (getTeacherModeFromSharedPrefs(activity = activity)) {
+                if (getDetailedModeFromSharedPrefs(activity = activity)) {
                     for (entry in schedule) {
-                        TeacherScheduleEntry(entry = entry, weekOffset.toLong())
+                        TeacherScheduleEntry(entry = entry)
                     }
                 } else {
                     for (entry in schedule) {
+                        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
                         Text(
-                            text = "${entry.startTime} - ${entry.endTime}", Modifier
+                            text = "${entry.startTime?.plusHours(3)?.format(timeFormatter)} - ${entry.endTime?.plusHours(3)?.format(timeFormatter)}", Modifier
                                 .fillMaxWidth()
                                 .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
                             textAlign = TextAlign.Center
@@ -226,7 +178,7 @@ fun TimeScheduleCard(
 }
 
 
-fun getTeacherModeFromSharedPrefs(activity: Activity): Boolean {
+fun getDetailedModeFromSharedPrefs(activity: Activity): Boolean {
     val sharedPrefs = activity.getSharedPreferences("Settings", Context.MODE_PRIVATE)
-    return sharedPrefs.getBoolean("TeacherMode", false)
+    return sharedPrefs.getBoolean("DetailedMode", false)
 }

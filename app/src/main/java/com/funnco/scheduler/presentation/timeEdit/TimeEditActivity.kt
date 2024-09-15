@@ -1,9 +1,9 @@
 package com.funnco.scheduler.presentation.timeEdit
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -17,15 +17,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -51,15 +48,18 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.funnco.scheduler.data.model.ScheduleModel
+import com.funnco.scheduler.data.repository.model.TemplateEventModel
 import com.funnco.scheduler.domain.DateUtils
-import com.funnco.scheduler.domain.model.NoteModel
+import com.funnco.scheduler.domain.model.WeekDay
 import com.funnco.scheduler.presentation.main.MainActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.OffsetTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 class TimeEditActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +71,13 @@ class TimeEditActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting2(intent.getIntExtra("user_id", -1), this)
+                    Greeting2(intent.getStringExtra("user_id")!!, this)
                 }
             }
         }
     }
 
+    @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
         startActivity(Intent(this, MainActivity::class.java))
         this.finish()
@@ -85,7 +86,7 @@ class TimeEditActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Greeting2(userId: Int, activity: Activity) {
+fun Greeting2(userId: String, activity: Activity) {
 
     var viewModel: TimeEditActivityViewModel = viewModel()
     val selectedUser = viewModel.getCurrentUser(userId)
@@ -98,7 +99,7 @@ fun Greeting2(userId: Int, activity: Activity) {
     ) {
 
         Text(
-            text = "Редактирование графика занятости\nпользователя ${selectedUser.nickName}",
+            text = "Редактирование графика занятости\nпользователя ${selectedUser.name}",
             Modifier
                 .fillMaxWidth()
                 .padding(PaddingValues(0.dp, 8.dp, 0.dp, 4.dp)),
@@ -162,7 +163,7 @@ fun Greeting2(userId: Int, activity: Activity) {
                 .fillMaxWidth()
                 .weight(5f, true)
                 .padding(4.dp, 8.dp, 4.dp, 8.dp)
-                .alpha(if (selectedUser.id != -1) 1f else 0f),
+                .alpha(if (selectedUser.id != "") 1f else 0f),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -171,16 +172,9 @@ fun Greeting2(userId: Int, activity: Activity) {
                     .fillMaxHeight()
             ) {
 
-                var isFirstLaunch by remember {
-                    mutableStateOf(true)
-                }
-                if (isFirstLaunch) {
-                    viewModel.getUserSchedules(selectedUser)
-                    isFirstLaunch = false
-                }
                 val currentSchedule =
-                    viewModel.userSchedules.collectAsState().value.filter { it.dayNumber == currentSelectedDay }
-                        .sortedBy { it.startTime }
+                    viewModel.daysTemplates[currentSelectedDay]?.collectAsState()?.value
+                        ?: emptyList()
 
                 if (currentSchedule.isEmpty()) {
                     Row {
@@ -218,10 +212,12 @@ fun Greeting2(userId: Int, activity: Activity) {
 
                     }
                     for (entry in currentSchedule) {
-                        if(!entry.isRescheduledEntry) {
-                            TimeScheduleCard(schedule = entry)
-                        }
+                        TimeScheduleCard(template = entry)
                     }
+                }
+
+                var isNewTemplateBeingCreated by remember {
+                    mutableStateOf(false)
                 }
                 OutlinedCard(
                     modifier = Modifier.padding(12.dp, 2.dp),
@@ -230,79 +226,36 @@ fun Greeting2(userId: Int, activity: Activity) {
                         containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
                     ),
                     onClick = {
-                        val tempList = viewModel.userSchedules.value.toMutableList()
-                        val startTime =
-                            if (currentSchedule.isNotEmpty()) currentSchedule.last().endTime else LocalTime.of(
-                                0,
-                                0
-                            )
-                        val endTime = startTime.plusHours(1)
-                        val newModel =
-                            ScheduleModel(null, userId, startTime, endTime, currentSelectedDay, "")
-                        tempList.add(newModel)
-                        viewModel.userSchedules.value = tempList
-                        viewModel.newEntries.add(newModel)
-//                        viewModel.isDialogNeededNow.value = true
-
+                        isNewTemplateBeingCreated = true
                     }
                 ) {
-                    Image(
-                        Icons.Filled.Add,
-                        contentDescription = "Add new entry",
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
-                        modifier = Modifier
-                            .align(
-                                Alignment.CenterHorizontally
-                            )
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    )
-                }
 
-            }
-        }
-        var isSaveClicked by remember {
-            mutableStateOf(false)
-        }
-        val context = LocalContext.current
-        Button(
-            onClick = {
-                viewModel.postNewSchedules() { isSuccess ->
-                    isSaveClicked = false
-                    activity.runOnUiThread {
-                        if (isSuccess) {
-                            Toast.makeText(context, "Сохранено", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Возникла ошибка при сохранении",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                    if(isNewTemplateBeingCreated){
+                        val newTemplateEventModel = TemplateEventModel()
+                        newTemplateEventModel.day = WeekDay.values().findLast { entry -> entry.value == currentSelectedDay }!!.name
+                        TimeScheduleCard(newTemplateEventModel, true) {
+                            isNewTemplateBeingCreated = false
                         }
+                    } else {
+                        Image(
+                            Icons.Filled.Add,
+                            contentDescription = "Add new entry",
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .align(
+                                    Alignment.CenterHorizontally
+                                )
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                        )
                     }
+
                 }
-                isSaveClicked = true
-            },
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .align(Alignment.End)
-                .fillMaxWidth()
-                .alpha(if (selectedUser.id != -1) 1f else 0f)
-                .padding(4.dp)
-        ) {
-            if (isSaveClicked) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text(text = "Сохранить изменения")
             }
         }
 
         TextButton(
-            onClick = { activity.finish() },
+            onClick = { activity.onBackPressed() },
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .align(Alignment.End)
@@ -319,7 +272,7 @@ fun Greeting2(userId: Int, activity: Activity) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimeScheduleCard(schedule: ScheduleModel) {
+fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = false, callback: (wasCreated: Boolean) -> Unit = {}) {
 
     var viewModel: TimeEditActivityViewModel = viewModel()
 
@@ -330,10 +283,10 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
         mutableIntStateOf(0)
     }
     var isStartTimeEdited by remember {
-        mutableStateOf(false)
+        mutableStateOf(true)
     }
     var isDialogNeededNow by remember {
-        mutableStateOf(false)
+        mutableStateOf(isNewTemplate)
     }
 
     OutlinedCard(
@@ -343,6 +296,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp)
         )
     ) {
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -354,13 +308,13 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 .height(40.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
-                    initHour = schedule.startTime.hour
-                    initMinutes = schedule.startTime.minute
+                    initHour = template.startTime?.hour ?: 0
+                    initMinutes = template.startTime?.minute ?: 0
                     isDialogNeededNow = true
                     isStartTimeEdited = true
                 }) {
                 Text(
-                    text = "${schedule.startTime}",
+                    text = "${template.startTime?.plusHours(3)?.format(timeFormatter)}",
                     textAlign = TextAlign.Center
                 )
             }
@@ -378,14 +332,14 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 .weight(1f),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
-                    initHour = schedule.endTime.hour
-                    initMinutes = schedule.endTime.minute
+                    initHour = template.startTime?.hour ?: 0
+                    initMinutes = template.startTime?.minute ?: 0
                     isDialogNeededNow = true
                     isStartTimeEdited = false
 
                 }) {
                 Text(
-                    text = "${schedule.endTime}",
+                    text = "${template.endTime?.plusHours(3)?.format(timeFormatter)}",
                     textAlign = TextAlign.Center
                 )
             }
@@ -400,7 +354,11 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
         )
 
         var noteText by remember {
-            mutableStateOf(schedule.note)
+            mutableStateOf(template.description)
+        }
+
+        var isLoading by remember {
+            mutableStateOf(false)
         }
 
         AlertDialog(
@@ -410,15 +368,29 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        isDialogNeededNow= false
+                        val currentOffset = ZonedDateTime.now().offset
                         if (isStartTimeEdited) {
-                            schedule.startTime =
-                                LocalTime.of(timePickerState.hour, timePickerState.minute)
+                            template.startTime =
+                                OffsetTime.of(LocalTime.of(timePickerState.hour, timePickerState.minute), currentOffset)
                         } else {
-                            schedule.endTime =
-                                LocalTime.of(timePickerState.hour, timePickerState.minute)
+                            template.endTime =
+                                OffsetTime.of(LocalTime.of(timePickerState.hour, timePickerState.minute), currentOffset)
                         }
-                        viewModel.newEntries.add(schedule)
+                        if(template.endTime == null){
+                            template.endTime = template.startTime!!.plusHours(1)
+                        }
+                        if(template.startTime == null){
+                            template.startTime = template.endTime!!.minusHours(1)
+                        }
+                        if(template.description == null){
+                            template.description = ""
+                        }
+                        isLoading = true
+                        viewModel.createOrUpdateTemplate(template) {
+                            isLoading = false
+                            callback(true)
+                            isDialogNeededNow = false
+                        }
                     }
                 ) {
                     Text("Подтвердить")
@@ -428,6 +400,7 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 TextButton(
                     onClick = {
                         isDialogNeededNow = false
+                        callback(false)
                     }
                 ) {
                     Text("Отмена")
@@ -437,17 +410,21 @@ fun TimeScheduleCard(schedule: ScheduleModel) {
                 Column {
                     TimePicker(state = timePickerState)
                     TextField(
-                        label = { Text(text = "Заметка") },
+                        label = { Text(text = "Описание") },
                         value = noteText ?: "", onValueChange = {
                             noteText = it
-                            schedule.note = it
+                            template.description = it
                         }
                     )
-                    TextButton(onClick = {
-                        viewModel.deleteSchedule(schedule.id!!)
-                        isDialogNeededNow = false
-                    }) {
-                        Text(text = "Удалить запись", color = Color(239, 83, 80, 255))
+                    if(template.id != null){
+                        TextButton(onClick = {
+                            viewModel.deleteTemplate(template.id!!) {
+                                isDialogNeededNow = false
+                                isLoading = false
+                            }
+                        }) {
+                            Text(text = "Удалить запись", color = Color(239, 83, 80, 255))
+                        }
                     }
                 }
             }
