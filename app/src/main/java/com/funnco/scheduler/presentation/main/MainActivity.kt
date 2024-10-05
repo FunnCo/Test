@@ -279,7 +279,7 @@ fun Greeting(
                                 if (!isDetailedModeEnabled) {
                                     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
                                     Text(
-                                        text = "${entry.startTime?.plusHours(3)?.format(timeFormatter)} - ${entry.endTime?.plusHours(3)?.format(timeFormatter)}", Modifier
+                                        text = "${entry.startTime?.format(timeFormatter)} - ${entry.endTime?.format(timeFormatter)}", Modifier
                                             .fillMaxWidth()
                                             .padding(PaddingValues(0.dp, 4.dp, 0.dp, 4.dp)),
                                         textAlign = TextAlign.Center

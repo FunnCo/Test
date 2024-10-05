@@ -29,22 +29,25 @@ object ApiService {
     val userApi = ApiServiceBuilder(UserAPI::class.java).build()
     val scheduleApi = ApiServiceBuilder(ScheduleAPI::class.java).build()
 
-    val objectMapper = jacksonObjectMapper()
-
-    fun addNote(note: NoteModel) {
-
+    fun deleteSingleEvent(eventId: String, callback: () -> Unit) {
+        MainScope().launch(Dispatchers.IO) {
+            scheduleApi.deleteSingleEvent(eventId)
+            callback()
+        }
     }
 
-    fun updateNote(eventId: String, note: NoteModel) {
-
+    fun pushNote(note: NoteModel, eventId: String,  callback: () -> Unit) {
+        MainScope().launch(Dispatchers.IO) {
+            scheduleApi.upsertNote(note, eventId)
+            callback()
+        }
     }
 
-    fun updateEventTemplate(templateEventModel: TemplateEventModel) {
-
-    }
-
-    fun updateEvent(eventModel: EventModel) {
-
+    fun deleteNote(noteId: String,  callback: () -> Unit) {
+        MainScope().launch(Dispatchers.IO) {
+            scheduleApi.deleteNote(noteId)
+            callback()
+        }
     }
 
     fun getAllUsers(callback: (users: List<UserModel>) -> Unit) {
@@ -59,6 +62,8 @@ object ApiService {
             callback()
         }
     }
+
+
 
     fun subscribeToScheduleUpdates(user: UserModel, callback: (result: List<EventModel>) -> Unit) {
         repetitiveManager.stopRepetitive("schedule_update")
@@ -91,5 +96,7 @@ object ApiService {
             callback()
         }
     }
+
+
 
 }

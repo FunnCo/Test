@@ -31,11 +31,13 @@ class MainActivityViewModel : ViewModel() {
     fun subscribeForSchedule(dayOffset: Int) {
         jobsList[dayOffset] = viewModelScope.launch(Dispatchers.IO) {
             while (isActive){
-                val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
-                if(!daysSchedule.containsKey(dayOffset)) {
-                    daysSchedule[dayOffset] = MutableStateFlow(emptyList())
+                if(isUpdateAllowed) {
+                    val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
+                    if (!daysSchedule.containsKey(dayOffset)) {
+                        daysSchedule[dayOffset] = MutableStateFlow(emptyList())
+                    }
+                    daysSchedule[dayOffset]?.value = dataInteractor.getScheduleForDate(selectedDate)
                 }
-                daysSchedule[dayOffset]?.value = dataInteractor.getScheduleForDate(selectedDate)
                 TimeUnit.SECONDS.sleep(5)
             }
         }
@@ -44,7 +46,9 @@ class MainActivityViewModel : ViewModel() {
     fun getUserBusyness() {
         viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
-                isCurrentUserFree.value = dataInteractor.getUserBusyness()
+                if (isUpdateAllowed) {
+                    isCurrentUserFree.value = dataInteractor.getUserBusyness()
+                }
                 TimeUnit.SECONDS.sleep(5)
             }
         }

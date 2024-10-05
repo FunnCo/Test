@@ -314,7 +314,7 @@ fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = fals
                     isStartTimeEdited = true
                 }) {
                 Text(
-                    text = "${template.startTime?.plusHours(3)?.format(timeFormatter)}",
+                    text = "${template.startTime?.format(timeFormatter)}",
                     textAlign = TextAlign.Center
                 )
             }
@@ -339,7 +339,7 @@ fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = fals
 
                 }) {
                 Text(
-                    text = "${template.endTime?.plusHours(3)?.format(timeFormatter)}",
+                    text = "${template.endTime?.format(timeFormatter)}",
                     textAlign = TextAlign.Center
                 )
             }

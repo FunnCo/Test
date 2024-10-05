@@ -5,6 +5,7 @@ import org.example.common.restutils.GET
 import org.example.common.restutils.RestClient
 
 @RestClient(baseUrl = "http://188.120.240.201:8080/api")
+//@RestClient(baseUrl = "http://192.168.31.15:8080/api")
 interface UserAPI {
 
     @GET("users")

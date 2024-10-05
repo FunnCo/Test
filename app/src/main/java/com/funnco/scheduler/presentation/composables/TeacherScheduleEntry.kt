@@ -1,5 +1,6 @@
 package com.funnco.scheduler.presentation.composables
 
+import android.provider.ContactsContract.CommonDataKinds.Note
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.funnco.scheduler.data.repository.ApiService
 import com.funnco.scheduler.data.repository.model.EventModel
 import com.funnco.scheduler.data.repository.model.NoteModel
 import com.funnco.scheduler.domain.interactor.DataInteractor
@@ -68,7 +70,7 @@ fun TeacherScheduleEntry(
     Row(modifier = Modifier.height(IntrinsicSize.Max)) {
         val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         Text(
-            text = "${entry.startTime?.plusHours(3)?.format(timeFormatter)} - ${entry.endTime?.plusHours(3)?.format(timeFormatter)}", Modifier
+            text = "${entry.startTime?.format(timeFormatter)} - ${entry.endTime?.format(timeFormatter)}", Modifier
                 .padding(PaddingValues(12.dp, 4.dp, 12.dp, 4.dp)),
             textAlign = TextAlign.Start
         )
@@ -123,24 +125,24 @@ fun TeacherScheduleEntry(
                             TextButton(modifier = Modifier.padding(8.dp, 4.dp), onClick = {
                                 isMenuExpanded = false
 
-//                                val tempList =
-//                                    notes.value?.toMutableList() ?: mutableListOf()
-//                                tempList.add(
-//                                    NoteModel(
-//                                        null,
-//                                        "",
-//                                        false
-//                                    )
-//                                )
-//                                notes.value = tempList
-//                                entry.tempNotes = notes.value
-//                                GlobalScope.launch {
-//                                    onTempNoteEditingStateChange(true)
-//                                    delay(5000L)
-//                                    if (!isNoteBeingEdited) {
-//                                        onTempNoteEditingStateChange(false)
-//                                    }
-//                                }
+                                val tempList =
+                                    notes.value?.toMutableList() ?: mutableListOf()
+                                tempList.add(
+                                    NoteModel(
+                                        null,
+                                        "",
+                                        false
+                                    )
+                                )
+                                notes.value = tempList
+                                GlobalScope.launch {
+                                    onTempNoteEditingStateChange(true)
+                                    delay(5000L)
+                                    if (!isNoteBeingEdited) {
+                                        onTempNoteEditingStateChange(false)
+                                    }
+                                }
+                                entry.notes = notes.value
 
                             }) {
                                 Text("Новая заметка")
@@ -149,37 +151,9 @@ fun TeacherScheduleEntry(
                             TextButton(modifier = Modifier.padding(8.dp, 4.dp), onClick = {
                                 isMenuExpanded = false
 
-//                                val tempList =
-//                                    notes.value?.toMutableList() ?: mutableListOf()
-//                                tempList.add(
-//                                    NoteModel(
-//                                        null,
-//                                        "Отмена",
-//                                        LocalDate
-//                                            .now()
-//                                            .minusDays(LocalDate.now().dayOfWeek.value.toLong())
-//                                            .plusDays(entry.dayNumber.toLong())
-//                                            .plusWeeks(offsetWeeks),
-//                                        entry.id!!,
-//                                        false
-//                                    )
-//                                )
-
-//                                DataInteractor.insertOrChangeTempNote(tempList.last()) { isSuccess, newNote ->
-//                                    if (isSuccess) {
-//                                        tempList.last().id = newNote.id
-//                                    }
-//                                }
-
-//                                notes.value = tempList
-//                                entry.tempNotes = notes.value
-//                                GlobalScope.launch {
-//                                    onTempNoteEditingStateChange(true)
-//                                    delay(5000L)
-//                                    if (!isNoteBeingEdited) {
-//                                        onTempNoteEditingStateChange(false)
-//                                    }
-//                                }
+                                ApiService.deleteSingleEvent(entry.id!!){
+                                    // Короче временно тут нихрена, вообще должен обновиться интерфейс.
+                                }
 
                             }) {
                                 Text("Отмена")
@@ -248,83 +222,9 @@ fun TeacherScheduleEntry(
                 }
             }
 
-//            val notesOfThisWeek = notes.collectAsState()?.value?.filter {
-//                it.dateOfNote!!.isEqual(
-//                    LocalDate.now()
-//                        .plusWeeks(offsetWeeks)
-//                        .minusDays(LocalDate.now().dayOfWeek.value.toLong())
-//                        .plusDays(entry.dayNumber.toLong())
-//                )
-//            } ?: emptyList()
-//            for (note in notesOfThisWeek) {
-//
-//                var currentValue by remember {
-//                    mutableStateOf(note.note)
-//                }
-//                var isFlagged by remember {
-//                    mutableStateOf(note.flag)
-//                }
-//
-//                Card(
-//                    modifier = Modifier
-//                        .padding(0.dp, 0.dp, 12.dp, 4.dp),
-//                    shape = RoundedCornerShape(12.dp),
-//                    colors = CardDefaults.cardColors(
-//                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-//                    )
-//                ) {
-//                    Row {
-//                        BasicTextField(
-//                            value = currentValue,
-//                            onValueChange = {
-//                                currentValue = it
-//                                note.note = currentValue
-//                                handleUserInput({
-//                                    Log.e(
-//                                        "StrangeError",
-//                                        "currentScheduleId is: ${note.scheduleId}"
-//                                    )
-//                                    DataInteractor.insertOrChangeTempNote(note) { isSuccess, newNote ->
-//                                        if (isSuccess) {
-//                                            note.id = newNote.id
-//                                        }
-//                                    }
-//                                }, onTempNoteEditingStateChange)
-//                            },
-//                            modifier = Modifier
-//                                .weight(2f)
-//                                .padding(8.dp, 4.dp, 12.dp, 4.dp),
-//                            textStyle = TextStyle.Default.copy(
-//                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-//                                fontSize = 16.sp
-//                            ),
-//                            cursorBrush = SolidColor(MaterialTheme.colorScheme.onPrimaryContainer),
-//                        )
-//                        CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
-//                            Checkbox(
-//                                checked = isFlagged,
-//                                onCheckedChange = {
-//                                    isFlagged = !isFlagged
-//                                    note.flag = isFlagged
-//                                    handleUserInput(
-//                                        {
-//                                            DataInteractor.insertOrChangeTempNote(note) { isSuccess, newNote ->
-//                                                if (isSuccess) {
-//                                                    note.id = newNote.id
-//                                                }
-//                                            }
-//                                        }, onTempNoteEditingStateChange
-//                                    )
-//                                },
-//                                modifier = Modifier
-//                                    .scale(0.85f)
-//                                    .padding(4.dp)
-//                                    .align(Alignment.CenterVertically)
-//                            )
-//                        }
-//                    }
-//                }
-//            }
+            for (note in notes.collectAsState().value!!) {
+                Note(note = note, eventId = entry.id!!, onTempNoteEditingStateChange)
+            }
         }
     }
 }
@@ -345,6 +245,74 @@ fun handleUserInput(codeToSchedule: () -> Unit, onStateChange: (Boolean) -> Unit
                 onStateChange(false)
                 isNoteBeingEdited = false
                 break
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Note(
+    note: NoteModel,
+    eventId: String,
+    onTempNoteEditingStateChange: (Boolean) -> Unit
+){
+    var currentValue by remember {
+        mutableStateOf(note.content!!)
+    }
+    var isFlagged by remember {
+        mutableStateOf(note.flag ?: false)
+    }
+
+    Card(
+        modifier = Modifier
+            .padding(0.dp, 0.dp, 12.dp, 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        )
+    ) {
+        Row {
+            BasicTextField(
+                value = currentValue,
+                onValueChange = {
+                    currentValue = it
+                    note.content = currentValue
+                    handleUserInput({
+                        DataInteractor.pushNote(note, eventId) {
+                            // WTF? ПОФИГ должно и так работать
+                        }
+                    }, onTempNoteEditingStateChange)
+                },
+                modifier = Modifier
+                    .weight(2f)
+                    .padding(8.dp, 4.dp, 12.dp, 4.dp),
+                textStyle = TextStyle.Default.copy(
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontSize = 16.sp
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.onPrimaryContainer),
+            )
+            CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                Checkbox(
+                    checked = isFlagged,
+                    onCheckedChange = {
+                        isFlagged = !isFlagged
+                        note.flag = isFlagged
+                        handleUserInput(
+                            {
+                                DataInteractor.pushNote(note, eventId) {
+                                    // WTF? ПОФИГ должно и так работать
+                                }
+                            }, onTempNoteEditingStateChange
+                        )
+                    },
+                    modifier = Modifier
+                        .scale(0.85f)
+                        .padding(4.dp)
+                        .align(Alignment.CenterVertically)
+                )
             }
         }
     }

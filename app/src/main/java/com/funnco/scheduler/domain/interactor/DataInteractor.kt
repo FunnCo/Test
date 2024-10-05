@@ -3,16 +3,22 @@ package com.funnco.scheduler.domain.interactor
 import android.util.Log
 import com.funnco.scheduler.data.repository.ApiService
 import com.funnco.scheduler.data.repository.model.EventModel
+import com.funnco.scheduler.data.repository.model.NoteModel
 import com.funnco.scheduler.data.repository.model.TemplateEventModel
 import com.funnco.scheduler.data.repository.model.UserModel
 import com.funnco.scheduler.domain.model.BusynessType
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.Comparator
 import java.util.Objects
 import java.util.concurrent.TimeUnit
 import java.util.stream.Collectors
+import kotlin.math.abs
+
 
 object DataInteractor {
 
@@ -21,6 +27,7 @@ object DataInteractor {
     var allUsers: List<UserModel> = emptyList()
     var schedule: List<EventModel> = emptyList()
     var templates: List<TemplateEventModel> = emptyList()
+
     lateinit var currentUser: UserModel
 
     init {
@@ -29,12 +36,30 @@ object DataInteractor {
         }
     }
 
+    val systemOffset = ZoneOffset.systemDefault().rules.getOffset(Instant.now())
+
+    fun handleTimeZones(initTime: OffsetTime): OffsetTime{
+        return initTime.withOffsetSameInstant(systemOffset)
+    }
+
     fun subscribeForUser(currentUser: UserModel){
         ApiService.subscribeToScheduleUpdates(currentUser) {
-            schedule = it
+            schedule = it.stream()
+                .peek { event ->
+                    event.startTime = handleTimeZones(event.startTime!!)
+                    event.endTime = handleTimeZones(event.endTime!!)
+                }
+                .sorted(Comparator.comparing(EventModel::startTime))
+                .collect(Collectors.toList())
         }
         ApiService.subscribeToTemplateUpdates(currentUser) {
-            templates = it
+            templates = it.stream()
+                .peek { event ->
+                    event.startTime = handleTimeZones(event.startTime!!)
+                    event.endTime = handleTimeZones(event.endTime!!)
+                }
+                .sorted(Comparator.comparing(TemplateEventModel::startTime))
+                .collect(Collectors.toList())
         }
         this.currentUser = currentUser
     }
@@ -55,9 +80,10 @@ object DataInteractor {
 
     fun getUserBusyness(): BusynessType {
         val currentSchedule = getScheduleForDate(LocalDate.now())
+        val now = OffsetTime.now()
         val currentEvent = currentSchedule.stream()
-            .filter { event -> event.startTime!!.isAfter(OffsetTime.now()) }
-            .filter { event -> event.endTime!!.isBefore(OffsetTime.now()) }
+            .filter { event -> event.startTime!!.isBefore(now) }
+            .filter { event -> event.endTime!!.isAfter(now) }
             .findFirst().orElse(null)
 
         // Сейчас пользователь занят
@@ -67,23 +93,23 @@ object DataInteractor {
 
         // COOLDDOWN_TIME перед следующим событием
         var minutesBeforeNextEvent = currentSchedule.stream()
-            .filter { event -> event.endTime!!.isAfter(event.endTime) } // Убрать уже завершенные события
+            .filter { event -> event.endTime!!.isAfter(now) } // Убрать уже завершенные события
             .sorted(Comparator.comparing(EventModel::startTime))
             .findFirst()
-            .map { event -> Duration.between(OffsetTime.now(), event.startTime).toMinutes() }
+            .map { event -> Duration.between(now, event.startTime).toMillis() }
             .orElse(null)
-        if (minutesBeforeNextEvent != null && minutesBeforeNextEvent < COOLDOWN_TIME) {
+        if (minutesBeforeNextEvent != null && abs(minutesBeforeNextEvent) < COOLDOWN_TIME) {
             return BusynessType.PREPARATION
         }
 
         // COOLDDOWN_TIME после предыдущего события
         var minutesAfterLastEvent = currentSchedule.stream()
-            .filter { event -> event.startTime!!.isBefore(event.startTime) } // Убрать еще не начавшиеся события
-            .sorted(Comparator.comparing(EventModel::startTime))
+            .filter { event -> event.startTime!!.isBefore(now) } // Убрать еще не начавшиеся события
+            .sorted(Comparator.comparing(EventModel::startTime).reversed())
             .findFirst()
-            .map { event -> Duration.between(OffsetTime.now(), event.endTime).toMinutes() }
+            .map { event -> Duration.between(now, event.endTime).toMillis() }
             .orElse(null)
-        if (minutesAfterLastEvent != null && minutesAfterLastEvent < COOLDOWN_TIME) {
+        if (minutesAfterLastEvent != null && abs(minutesAfterLastEvent) < COOLDOWN_TIME) {
             return BusynessType.FINISHING
         }
 
@@ -96,5 +122,17 @@ object DataInteractor {
 
     fun deleteTemplate(id: String, callback: () -> Unit) {
         ApiService.deleteTemplate(id, callback)
+    }
+
+    fun pushNote(note: NoteModel, eventId: String, callback: () -> Unit) {
+        if(note.flag == false && note.content.isNullOrBlank() && note.id != null){
+            ApiService.deleteNote(note.id!!, callback)
+        } else {
+            ApiService.pushNote(note, eventId, callback)
+        }
+    }
+
+    fun deleteSingleEvent(eventModel: EventModel, callback: () -> Unit){
+        ApiService.deleteSingleEvent(eventModel.id!!, callback)
     }
 }
