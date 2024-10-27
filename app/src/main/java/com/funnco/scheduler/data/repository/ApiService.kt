@@ -1,12 +1,6 @@
 package com.funnco.scheduler.data.repository
 
 import ApiServiceBuilder
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.type.CollectionType
-import com.fasterxml.jackson.module.kotlin.convertValue
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.funnco.scheduler.data.repository.api.ScheduleAPI
 import com.funnco.scheduler.data.repository.api.UserAPI
 import com.funnco.scheduler.data.repository.model.EventModel
@@ -18,12 +12,10 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.example.common.restutils.RepetitiveRequestManager
 import java.util.concurrent.TimeUnit
-import java.util.stream.Collectors
-import kotlin.streams.toList
 
 object ApiService {
 
-    val REQUEST_FREQUENCY = TimeUnit.SECONDS.toMillis(3)
+    val REQUEST_FREQUENCY = TimeUnit.SECONDS.toMillis(1)
     val repetitiveManager = RepetitiveRequestManager()
 
     val userApi = ApiServiceBuilder(UserAPI::class.java).build()
@@ -36,14 +28,21 @@ object ApiService {
         }
     }
 
-    fun pushNote(note: NoteModel, eventId: String,  callback: () -> Unit) {
+    fun pushEvent(eventModel: EventModel, user: UserModel, callback: () -> Unit) {
+        MainScope().launch(Dispatchers.IO) {
+            scheduleApi.upsertSingleEvent(eventModel, user.id)
+            callback()
+        }
+    }
+
+    fun pushEvent(note: NoteModel, eventId: String, callback: () -> Unit) {
         MainScope().launch(Dispatchers.IO) {
             scheduleApi.upsertNote(note, eventId)
             callback()
         }
     }
 
-    fun deleteNote(noteId: String,  callback: () -> Unit) {
+    fun deleteNote(noteId: String, callback: () -> Unit) {
         MainScope().launch(Dispatchers.IO) {
             scheduleApi.deleteNote(noteId)
             callback()
@@ -62,8 +61,6 @@ object ApiService {
             callback()
         }
     }
-
-
 
     fun subscribeToScheduleUpdates(user: UserModel, callback: (result: List<EventModel>) -> Unit) {
         repetitiveManager.stopRepetitive("schedule_update")
@@ -96,7 +93,6 @@ object ApiService {
             callback()
         }
     }
-
 
 
 }

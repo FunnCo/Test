@@ -38,7 +38,7 @@ class FullScheduleActivityViewModel : ViewModel() {
                         weeksSchedule[weekOffset] = MutableStateFlow(emptyList())
                     }
                     weeksSchedule[weekOffset]?.update { dataInteractor.getScheduleForWeek(weekOffset) }
-                    TimeUnit.SECONDS.sleep(5)
+                    TimeUnit.MICROSECONDS.sleep(50)
                 }
             }
         }

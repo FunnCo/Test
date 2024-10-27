@@ -332,8 +332,8 @@ fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = fals
                 .weight(1f),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
-                    initHour = template.startTime?.hour ?: 0
-                    initMinutes = template.startTime?.minute ?: 0
+                    initHour = template.endTime?.hour ?: 0
+                    initMinutes = template.endTime?.minute ?: 0
                     isDialogNeededNow = true
                     isStartTimeEdited = false
 
@@ -384,6 +384,8 @@ fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = fals
                         }
                         if(template.description == null){
                             template.description = ""
+                        } else {
+                            template.description = noteText
                         }
                         isLoading = true
                         viewModel.createOrUpdateTemplate(template) {
@@ -414,6 +416,7 @@ fun TimeScheduleCard(template: TemplateEventModel, isNewTemplate: Boolean = fals
                         value = noteText ?: "", onValueChange = {
                             noteText = it
                             template.description = it
+                            val a = 5
                         }
                     )
                     if(template.id != null){

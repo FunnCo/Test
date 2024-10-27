@@ -1,6 +1,5 @@
 package com.funnco.scheduler.domain.interactor
 
-import android.util.Log
 import com.funnco.scheduler.data.repository.ApiService
 import com.funnco.scheduler.data.repository.model.EventModel
 import com.funnco.scheduler.data.repository.model.NoteModel
@@ -11,7 +10,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetTime
-import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Comparator
 import java.util.Objects
@@ -116,6 +114,10 @@ object DataInteractor {
         return BusynessType.FREE
     }
 
+    fun pushEvent(event: EventModel, callback: () -> Unit) {
+        ApiService.pushEvent(event, currentUser, callback)
+    }
+
     fun pushTemplate(template: TemplateEventModel, callback: () -> Unit) {
         ApiService.pushTemplate(template, currentUser, callback)
     }
@@ -128,7 +130,7 @@ object DataInteractor {
         if(note.flag == false && note.content.isNullOrBlank() && note.id != null){
             ApiService.deleteNote(note.id!!, callback)
         } else {
-            ApiService.pushNote(note, eventId, callback)
+            ApiService.pushEvent(note, eventId, callback)
         }
     }
 

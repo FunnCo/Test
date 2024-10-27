@@ -54,8 +54,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.OffsetTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,8 +185,15 @@ fun TeacherScheduleEntry(
                                         isRescheduleDialogNeeded = false
                                         isMenuExpanded = false
 
-                                        val tempList =
-                                            notes.value?.toMutableList() ?: mutableListOf()
+                                        val eventTimeLength = Duration.between(entry.startTime, entry.endTime)
+                                        val currentOffset = ZonedDateTime.now().offset
+
+                                        entry.date = date
+                                        entry.startTime = OffsetTime.of(time, currentOffset)
+                                        entry.endTime = entry.startTime!!.plus(eventTimeLength)
+                                        DataInteractor.pushEvent(entry){
+
+                                        }
 
 //                                        val newNote = NoteModel(
 //                                            null,

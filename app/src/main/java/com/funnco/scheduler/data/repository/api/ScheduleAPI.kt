@@ -51,4 +51,11 @@ interface ScheduleAPI {
         @Param("eventId") noteId: String,
         @Header("Content-type") type: String = "application/json"
     ): Any
+
+    @POST("schedule/single")
+    fun upsertSingleEvent(
+        @Body eventModel: EventModel,
+        @Param("userId") userId: String,
+        @Header("Content-type") type: String = "application/json"
+    ): Any
 }

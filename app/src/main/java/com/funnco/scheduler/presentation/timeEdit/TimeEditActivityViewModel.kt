@@ -27,7 +27,7 @@ class TimeEditActivityViewModel : ViewModel() {
             jobsList[dayOffset] = viewModelScope.launch(Dispatchers.IO) {
                 while (isActive) {
                     updateSchedule(dayOffset)
-                    TimeUnit.SECONDS.sleep(1)
+                    TimeUnit.MICROSECONDS.sleep(50)
                 }
             }
         }

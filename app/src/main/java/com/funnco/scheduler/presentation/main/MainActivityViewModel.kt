@@ -38,7 +38,7 @@ class MainActivityViewModel : ViewModel() {
                     }
                     daysSchedule[dayOffset]?.value = dataInteractor.getScheduleForDate(selectedDate)
                 }
-                TimeUnit.SECONDS.sleep(5)
+                TimeUnit.MICROSECONDS.sleep(50)
             }
         }
     }
@@ -49,7 +49,7 @@ class MainActivityViewModel : ViewModel() {
                 if (isUpdateAllowed) {
                     isCurrentUserFree.value = dataInteractor.getUserBusyness()
                 }
-                TimeUnit.SECONDS.sleep(5)
+                TimeUnit.MICROSECONDS.sleep(50)
             }
         }
     }
@@ -63,7 +63,7 @@ class MainActivityViewModel : ViewModel() {
         this.viewModelScope.launch(Dispatchers.IO) {
             while (listOfUsers.value.isEmpty()) {
                 listOfUsers.value = dataInteractor.allUsers
-                TimeUnit.SECONDS.sleep(1)
+                TimeUnit.MICROSECONDS.sleep(50)
             }
         }
     }
