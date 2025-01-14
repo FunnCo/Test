@@ -44,7 +44,12 @@ object DataInteractor {
         val undeletableEvents = schedule.filter { event -> event.notes?.any { note -> !note.canBeDeleted } ?: false }.toList()
         val filteredNewEvents = newEvents.filter { event -> undeletableEvents.all { it.id != event.id } }.toMutableList()
         filteredNewEvents.addAll(undeletableEvents)
-        schedule = filteredNewEvents
+        schedule = filteredNewEvents.stream()
+            .peek { event ->
+                event.startTime = handleTimeZones(event.startTime!!)
+                event.endTime = handleTimeZones(event.endTime!!)
+            }
+            .sorted(Comparator.comparing(EventModel::startTime)).collect(Collectors.toList())
 
 //        schedule = it.stream()
 //            .peek { event ->
