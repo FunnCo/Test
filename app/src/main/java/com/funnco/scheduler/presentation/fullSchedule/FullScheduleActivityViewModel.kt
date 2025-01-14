@@ -27,6 +27,8 @@ class FullScheduleActivityViewModel : ViewModel() {
         return dataInteractor.allUsers.find { it.id == userId }!!
     }
 
+    var canUpdateUI = true
+
     init {
         for(weekOffset in -4..4){
             if(jobsList.containsKey(weekOffset)){
@@ -34,10 +36,16 @@ class FullScheduleActivityViewModel : ViewModel() {
             }
             jobsList[weekOffset] = viewModelScope.launch(Dispatchers.IO) {
                 while (isActive) {
-                    if (!weeksSchedule.containsKey(weekOffset)) {
-                        weeksSchedule[weekOffset] = MutableStateFlow(emptyList())
+                    if(canUpdateUI) {
+                        if (!weeksSchedule.containsKey(weekOffset)) {
+                            weeksSchedule[weekOffset] = MutableStateFlow(emptyList())
+                        }
+                        weeksSchedule[weekOffset]?.update {
+                            dataInteractor.getScheduleForWeek(
+                                weekOffset
+                            )
+                        }
                     }
-                    weeksSchedule[weekOffset]?.update { dataInteractor.getScheduleForWeek(weekOffset) }
                     TimeUnit.MICROSECONDS.sleep(50)
                 }
             }

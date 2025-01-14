@@ -108,7 +108,8 @@ fun Greeting3(userId: String, activity: Activity) {
                     TimeScheduleCard(
                         schedule = daysSchedules[i] ?: emptyList(),
                         dayNumber = i,
-                        activity = activity
+                        activity = activity,
+                        viewModel = viewModel
                     )
                 }
             }
@@ -121,6 +122,7 @@ fun TimeScheduleCard(
     schedule: List<EventModel>,
     dayNumber: Int,
     activity: Activity,
+    viewModel: FullScheduleActivityViewModel
 ) {
 
     Card(
@@ -156,7 +158,9 @@ fun TimeScheduleCard(
             } else {
                 if (getDetailedModeFromSharedPrefs(activity = activity)) {
                     for (entry in schedule) {
-                        TeacherScheduleEntry(entry = entry)
+                        TeacherScheduleEntry(entry = entry){
+                            viewModel.canUpdateUI = !it
+                        }
                     }
                 } else {
                     for (entry in schedule) {

@@ -134,6 +134,7 @@ fun TeacherScheduleEntry(
                                     NoteModel(
                                         null,
                                         "",
+                                        false,
                                         false
                                     )
                                 )

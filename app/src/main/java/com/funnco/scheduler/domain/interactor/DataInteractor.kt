@@ -40,24 +40,37 @@ object DataInteractor {
         return initTime.withOffsetSameInstant(systemOffset)
     }
 
+    fun handleIncomingEvents(newEvents: List<EventModel>){
+        val undeletableEvents = schedule.filter { event -> event.notes?.any { note -> !note.canBeDeleted } ?: false }.toList()
+        val filteredNewEvents = newEvents.filter { event -> undeletableEvents.all { it.id != event.id } }.toMutableList()
+        filteredNewEvents.addAll(undeletableEvents)
+        schedule = filteredNewEvents
+
+//        schedule = it.stream()
+//            .peek { event ->
+//                event.startTime = handleTimeZones(event.startTime!!)
+//                event.endTime = handleTimeZones(event.endTime!!)
+//            }
+//            .sorted(Comparator.comparing(EventModel::startTime))
+//            .collect(Collectors.toList())
+    }
+
+    fun handleIncomingTemplates(newEvents: List<TemplateEventModel>){
+        templates = newEvents.stream()
+            .peek { event ->
+                event.startTime = handleTimeZones(event.startTime!!)
+                event.endTime = handleTimeZones(event.endTime!!)
+            }
+            .sorted(Comparator.comparing(TemplateEventModel::startTime))
+            .collect(Collectors.toList())
+    }
+
     fun subscribeForUser(currentUser: UserModel){
         ApiService.subscribeToScheduleUpdates(currentUser) {
-            schedule = it.stream()
-                .peek { event ->
-                    event.startTime = handleTimeZones(event.startTime!!)
-                    event.endTime = handleTimeZones(event.endTime!!)
-                }
-                .sorted(Comparator.comparing(EventModel::startTime))
-                .collect(Collectors.toList())
+            handleIncomingEvents(it)
         }
         ApiService.subscribeToTemplateUpdates(currentUser) {
-            templates = it.stream()
-                .peek { event ->
-                    event.startTime = handleTimeZones(event.startTime!!)
-                    event.endTime = handleTimeZones(event.endTime!!)
-                }
-                .sorted(Comparator.comparing(TemplateEventModel::startTime))
-                .collect(Collectors.toList())
+            handleIncomingTemplates(it)
         }
         this.currentUser = currentUser
     }

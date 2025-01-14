@@ -1,14 +1,9 @@
 package com.funnco.scheduler.presentation.main
 
 import android.app.Activity
-import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -63,7 +58,6 @@ import com.funnco.scheduler.presentation.composables.TeacherScheduleEntry
 import com.funnco.scheduler.presentation.fullSchedule.FullScheduleActivity
 import com.funnco.scheduler.presentation.theme.SchedulerTheme
 import com.funnco.scheduler.presentation.timeEdit.TimeEditActivity
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 
@@ -288,7 +282,7 @@ fun Greeting(
                                     TeacherScheduleEntry(
                                         entry = entry,
                                         onTempNoteEditingStateChange = {
-                                            viewModel.isUpdateAllowed = !it
+                                            viewModel.canUpdateUI = !it
                                         })
                                 }
                             }
